@@ -1,0 +1,39 @@
+name: 🚀 Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main   # Jab bhi main branch pe push hoga, auto deploy hoga
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ✅ Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🔑 Deploy via SSH to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            echo "=== Pulling latest code from GitHub ==="
+            cd /home/ubuntu/courier_app/courier_tracker
+            git pull origin main
+
+            echo "=== Restarting courier service ==="
+            sudo systemctl stop courier.service
+            sleep 2
+            sudo systemctl start courier.service
+            sleep 5
+
+            echo "=== Checking service status ==="
+            sudo systemctl is-active courier.service
+            curl -s -o /dev/null -w "HTTP Status: %{http_code}" http://localhost:5000/login
+            echo ""
+            echo "✅ Deployment complete!"
