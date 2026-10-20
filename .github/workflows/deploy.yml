@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main   # Jab bhi main branch pe push hoga, auto deploy hoga
+  workflow_dispatch:   # Actions tab se manually bhi chala sakte hain
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -11,9 +16,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ✅ Checkout code
-        uses: actions/checkout@v3
-
       - name: 🔑 Deploy via SSH to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -21,19 +23,34 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
+          command_timeout: 10m
+          script_stop: true
           script: |
-            echo "=== Pulling latest code from GitHub ==="
+            set -e
             cd /home/ubuntu/courier_app/courier_tracker
-            git pull origin main
+
+            echo "=== Pulling latest code from GitHub ==="
+            git fetch origin main
+            # Fast-forward only: fails (instead of overwriting) if someone edited files on the server
+            git merge --ff-only origin/main
+            git log --oneline -1
+
+            echo "=== Installing dependencies ==="
+            venv/bin/pip install -q -r requirements.txt
 
             echo "=== Restarting courier service ==="
-            sudo systemctl stop courier.service
-            sleep 2
-            sudo systemctl start courier.service
-            sleep 5
+            sudo systemctl restart courier.service
 
-            echo "=== Checking service status ==="
-            sudo systemctl is-active courier.service
-            curl -s -o /dev/null -w "HTTP Status: %{http_code}" http://localhost:5000/login
-            echo ""
-            echo "✅ Deployment complete!"
+            echo "=== Health check ==="
+            for i in $(seq 1 30); do
+              code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/login || true)
+              if [ "$code" = "200" ]; then
+                echo "HTTP Status: $code"
+                echo "✅ Deployment complete!"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "❌ App did not respond with 200 on /login (last status: $code)"
+            sudo journalctl -u courier.service -n 40 --no-pager
+            exit 1
