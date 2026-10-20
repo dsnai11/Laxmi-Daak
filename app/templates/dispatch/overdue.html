@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Overdue Parcels{% endblock %}
+{% block page_title %}⏰ Overdue Parcels{% endblock %}
+{% block breadcrumb %}Operations / Overdue{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+
+  <!-- Header Alert Banner -->
+  <div class="glass-card" style="border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;
+       background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="font-size: 36px; animation: pulse 1.5s infinite;">🚨</div>
+      <div>
+        <div style="color: #ef4444; font-weight: 700; font-size: 16px;">
+          {{ overdue_count }} Parcel{{ 's' if overdue_count != 1 else '' }} Overdue
+        </div>
+        <div style="color: var(--text-secondary); font-size: 13px; margin-top: 3px;">
+          These parcels have passed their expected delivery due date and are still pending or in-transit.
+          Take immediate action to resolve or update their status.
+        </div>
+      </div>
+    </div>
+    {% if overdue_count > 0 and current_user.role in ['superadmin', 'manager'] %}
+    <form method="POST" action="{{ url_for('dispatch.trigger_overdue_alerts') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(239,68,68,0.2); transition: all 0.3s;">
+        ✉️ Send Overdue Alerts
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if parcels.total == 0 %}
+  <div class="glass-card" style="border-radius: 12px; padding: 60px; text-align: center;">
+    <div style="font-size: 56px; margin-bottom: 16px;">✅</div>
+    <h3 style="color: var(--text-primary); margin: 0 0 8px 0;">No Overdue Parcels!</h3>
+    <p style="color: var(--text-muted); font-size: 14px; margin: 0;">
+      All parcels with due dates have been delivered on time. Great job!
+    </p>
+  </div>
+  {% else %}
+
+  <div class="glass-card" style="border-radius: 12px; overflow: hidden; padding: 0;">
+    <div class="table-responsive">
+      <table style="width: 100%; text-align: left; border-collapse: collapse;">
+        <thead>
+          <tr style="background: rgba(239,68,68,0.08); border-bottom: 1px solid rgba(239,68,68,0.2);">
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Tracking No.</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Sender → Receiver</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Due Date</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Days Overdue</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Current Location</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Status</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase; text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in parcels.items %}
+          {% set days_overdue = (today - p.due_date).days %}
+          <tr style="border-bottom: 1px solid var(--glass-border); background: {% if days_overdue > 7 %}rgba(239,68,68,0.05){% else %}transparent{% endif %};">
+            <td style="padding: 14px 16px;">
+              <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}"
+                 style="font-family: monospace; color: #ef4444; font-weight: 700; font-size: 13px; text-decoration: none;">
+                {{ p.tracking_number }}
+              </a>
+            </td>
+            <td style="padding: 14px 16px;">
+              <div style="color: var(--text-primary); font-size: 13px; font-weight: 500;">{{ p.sender_name }}</div>
+              <div style="color: var(--text-muted); font-size: 12px;">→ {{ p.receiver_name }}</div>
+              {% if p.receiver_phone %}
+              <div style="color: var(--text-muted); font-size: 11px;">📞 {{ p.receiver_phone }}</div>
+              {% endif %}
+            </td>
+            <td style="padding: 14px 16px;">
+              <div style="color: #ef4444; font-weight: 600; font-size: 13px;">
+                {{ p.due_date.strftime('%d %b %Y') }}
+              </div>
+              <div style="color: var(--text-muted); font-size: 11px;">
+                Was due {{ p.due_date.strftime('%A') }}
+              </div>
+            </td>
+            <td style="padding: 14px 16px;">
+              <span style="display: inline-flex; align-items: center; gap: 4px;
+                     background: {% if days_overdue > 7 %}rgba(239,68,68,0.2){% else %}rgba(239,68,68,0.1){% endif %};
+                     color: #ef4444; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; animation: pulse 2s infinite;">
+                🔴 {{ days_overdue }} day{{ 's' if days_overdue != 1 else '' }}
+              </span>
+            </td>
+            <td style="padding: 14px 16px; color: var(--text-secondary); font-size: 13px;">
+              {% if p.current_branch %}
+                📍 {{ p.current_branch.name }}
+              {% else %}
+                <span style="color: var(--text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td style="padding: 14px 16px;">
+              <span style="padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
+                {% if p.status == 'pending' %}background: rgba(245,158,11,0.1); color: #f59e0b;
+                {% elif p.status == 'in_transit' %}background: rgba(79,142,247,0.1); color: #4f8ef7;
+                {% else %}background: rgba(107,114,128,0.1); color: #6b7280;{% endif %}">
+                {{ p.status_label }}
+              </span>
+            </td>
+            <td style="padding: 14px 16px; text-align: right;">
+              <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}"
+                 class="btn btn-sm"
+                 style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600;">
+                View & Update
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if parcels.pages > 1 %}
+    <div style="padding: 16px; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+      <div style="color: var(--text-muted); font-size: 12px;">
+        Showing {{ parcels.items|length }} of {{ parcels.total }} overdue parcels
+      </div>
+      <div style="display: flex; gap: 8px;">
+        {% if parcels.has_prev %}
+        <a href="{{ url_for('dispatch.overdue_list', page=parcels.prev_num) }}" class="btn btn-sm"
+           style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Prev</a>
+        {% endif %}
+        {% if parcels.has_next %}
+        <a href="{{ url_for('dispatch.overdue_list', page=parcels.next_num) }}" class="btn btn-sm"
+           style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Inject today's date into template context via JS for days_overdue calc fallback
+// (Already computed server-side via p.due_date, this is just for dynamic UI)
+</script>
+{% endblock %}

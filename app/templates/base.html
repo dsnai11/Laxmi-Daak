@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{% block title %}Laxmi Daak{% endblock %} | {{ company_name|default('Laxmi Daak') }}</title>
+  <meta name="description" content="Enterprise Courier & File Tracking System">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  
+  <!-- PWA Manifest & Colors -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0a0a1a">
+  
+  <!-- iOS Safari specific meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Courier Tracker">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.png') }}">
+  
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  
+  <script>
+    (function() {
+      const theme = localStorage.getItem('theme') || 'dark';
+      if (theme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+  
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  
+  <!-- Layout for authenticated pages -->
+  {% if current_user.is_authenticated %}
+  <div class="layout-wrapper">
+    
+    <!-- Mobile Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+    
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo" style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <!-- Logo/Icon: Use a truck SVG icon -->
+          <div class="logo-icon">🚚</div>
+          <div>
+            <div class="logo-text" style="font-size: 16px; font-weight: 800;">Laxmi Daak</div>
+          </div>
+        </div>
+        <button class="sidebar-close-btn" onclick="toggleSidebar()" aria-label="Close menu">✕</button>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <!-- Navigation items based on role -->
+        
+        {% if current_user.role == 'superadmin' %}
+        <div class="nav-section-title">Overview</div>
+        <a href="{{ url_for('dashboard.admin_dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard.admin_dashboard' %}active{% endif %}">
+          <span class="icon">📊</span> Dashboard
+        </a>
+        
+        <div class="nav-section-title">Operations</div>
+        <a href="{{ url_for('dispatch.new_dispatch') }}" class="nav-item {% if request.endpoint == 'dispatch.new_dispatch' %}active{% endif %}">
+          <span class="icon">📦</span> New Dispatch
+        </a>
+        <a href="{{ url_for('dispatch.bulk_dispatch') }}" class="nav-item {% if request.endpoint == 'dispatch.bulk_dispatch' %}active{% endif %}">
+          <span class="icon">📤</span> Bulk Dispatch
+        </a>
+        <a href="{{ url_for('dispatch.dispatch_list') }}" class="nav-item {% if request.endpoint == 'dispatch.dispatch_list' %}active{% endif %}">
+          <span class="icon">📋</span> All Parcels
+        </a>
+        <a href="{{ url_for('dispatch.overdue_list') }}" class="nav-item {% if request.endpoint == 'dispatch.overdue_list' %}active{% endif %}" style="{% if overdue_count > 0 %}color: #ef4444;{% endif %}">
+          <span class="icon">⏰</span> Overdue
+          {% if overdue_count > 0 %}
+          <span style="margin-left: auto; background: #ef4444; color: white; font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">{{ overdue_count }}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('dispatch.archive_list') }}" class="nav-item {% if request.endpoint == 'dispatch.archive_list' %}active{% endif %}">
+          <span class="icon">🗄️</span> Archive
+        </a>
+        <a href="{{ url_for('scan.scanner') }}" class="nav-item {% if 'scan' in request.endpoint %}active{% endif %}">
+          <span class="icon">📷</span> QR Scanner
+        </a>
+        
+        <a href="{{ url_for('admin.dispatch_queries') }}" class="nav-item {% if request.endpoint == 'admin.dispatch_queries' or request.endpoint == 'admin.pickup_dispatch_query' %}active{% endif %}">
+          <span class="icon">📬</span> Dispatch Queries
+          {% if pending_pickup_count is defined and pending_pickup_count > 0 %}
+          <span style="margin-left: auto; background: #f59e0b; color: white; font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ pending_pickup_count }}</span>
+          {% endif %}
+        </a>
+        
+        <div class="nav-section-title">Administration</div>
+        <a href="{{ url_for('admin.accounts') }}" class="nav-item {% if 'admin' in request.endpoint and 'item' not in request.endpoint and 'billing' not in request.endpoint and 'department' not in request.endpoint and 'dispatch' not in request.endpoint and 'security' not in request.endpoint %}active{% endif %}">
+          <span class="icon">👥</span> Accounts & Logins
+        </a>
+        <a href="{{ url_for('admin.departments') }}" class="nav-item {% if request.endpoint == 'admin.departments' %}active{% endif %}">
+          <span class="icon">🏢</span> Departments
+        </a>
+        <a href="{{ url_for('admin.items') }}" class="nav-item {% if request.endpoint == 'admin.items' %}active{% endif %}">
+          <span class="icon">📦</span> Item Master
+        </a>
+        <a href="{{ url_for('admin.billing_settings') }}" class="nav-item {% if request.endpoint == 'admin.billing_settings' %}active{% endif %}">
+          <span class="icon">💵</span> Billing Rates
+        </a>
+        <a href="{{ url_for('admin.security_logs') }}" class="nav-item {% if request.endpoint == 'admin.security_logs' %}active{% endif %}">
+          <span class="icon">🛡️</span> Security Logs
+        </a>
+        
+        {% elif current_user.role == 'manager' %}
+        <!-- Manager nav -->
+        <div class="nav-section-title">Overview</div>
+        <a href="{{ url_for('dashboard.manager_dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard.manager_dashboard' %}active{% endif %}">
+          <span class="icon">📊</span> Dashboard
+        </a>
+        
+        <div class="nav-section-title">Operations</div>
+        {% if current_user.has_permission('can_new_dispatch') %}
+        <a href="{{ url_for('dispatch.new_dispatch') }}" class="nav-item {% if request.endpoint == 'dispatch.new_dispatch' %}active{% endif %}">
+          <span class="icon">📦</span> New Dispatch
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_bulk_dispatch') %}
+        <a href="{{ url_for('dispatch.bulk_dispatch') }}" class="nav-item {% if request.endpoint == 'dispatch.bulk_dispatch' %}active{% endif %}">
+          <span class="icon">📤</span> Bulk Dispatch
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_view_parcels') %}
+        <a href="{{ url_for('dispatch.dispatch_list') }}" class="nav-item {% if request.endpoint == 'dispatch.dispatch_list' %}active{% endif %}">
+          <span class="icon">📋</span> Parcels
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_overdue') %}
+        <a href="{{ url_for('dispatch.overdue_list') }}" class="nav-item {% if request.endpoint == 'dispatch.overdue_list' %}active{% endif %}" style="{% if overdue_count > 0 %}color: #ef4444;{% endif %}">
+          <span class="icon">⏰</span> Overdue
+          {% if overdue_count > 0 %}
+          <span style="margin-left: auto; background: #ef4444; color: white; font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">{{ overdue_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_archive') %}
+        <a href="{{ url_for('dispatch.archive_list') }}" class="nav-item {% if request.endpoint == 'dispatch.archive_list' %}active{% endif %}">
+          <span class="icon">🗄️</span> Archive
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_scan') %}
+        <a href="{{ url_for('scan.scanner') }}" class="nav-item {% if request.endpoint == 'scan.scanner' %}active{% endif %}">
+          <span class="icon">📷</span> QR Scanner
+        </a>
+        {% endif %}
+        
+        {% else %}
+        <!-- Employee nav -->
+        <div class="nav-section-title">My Work</div>
+        <a href="{{ url_for('dashboard.employee_dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard.employee_dashboard' %}active{% endif %}">
+          <span class="icon">🏠</span> Dashboard
+        </a>
+        {% if current_user.has_permission('can_scan') %}
+        <a href="{{ url_for('scan.scanner') }}" class="nav-item {% if 'scan' in request.endpoint %}active{% endif %}">
+          <span class="icon">📷</span> Scan QR Code
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_raise_query') %}
+        <a href="{{ url_for('dispatch.raise_query') }}" class="nav-item {% if request.endpoint == 'dispatch.raise_query' %}active{% endif %}">
+          <span class="icon">📬</span> Raise Dispatch Query
+        </a>
+        <a href="{{ url_for('dispatch.my_queries') }}" class="nav-item {% if request.endpoint == 'dispatch.my_queries' %}active{% endif %}">
+          <span class="icon">📋</span> My Queries
+          {% if my_queries_count is defined and my_queries_count > 0 %}
+          <span style="margin-left: auto; background: #10b981; color: white; font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">{{ my_queries_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_dispatch_queries') %}
+        <a href="{{ url_for('admin.dispatch_queries') }}" class="nav-item {% if request.endpoint == 'admin.dispatch_queries' or request.endpoint == 'admin.pickup_dispatch_query' %}active{% endif %}">
+          <span class="icon">📬</span> Dispatch Queries
+          {% if pending_pickup_count is defined and pending_pickup_count > 0 %}
+          <span style="margin-left: auto; background: #f59e0b; color: white; font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ pending_pickup_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_new_dispatch') %}
+        <a href="{{ url_for('dispatch.new_dispatch') }}" class="nav-item {% if request.endpoint == 'dispatch.new_dispatch' %}active{% endif %}">
+          <span class="icon">📦</span> New Dispatch
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_bulk_dispatch') %}
+        <a href="{{ url_for('dispatch.bulk_dispatch') }}" class="nav-item {% if request.endpoint == 'dispatch.bulk_dispatch' %}active{% endif %}">
+          <span class="icon">📤</span> Bulk Dispatch
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_view_parcels') %}
+        <a href="{{ url_for('dispatch.dispatch_list') }}" class="nav-item {% if request.endpoint == 'dispatch.dispatch_list' %}active{% endif %}">
+          <span class="icon">📜</span> All Parcels
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_overdue') %}
+        <a href="{{ url_for('dispatch.overdue_list') }}" class="nav-item {% if request.endpoint == 'dispatch.overdue_list' %}active{% endif %}" style="{% if overdue_count > 0 %}color: #ef4444;{% endif %}">
+          <span class="icon">⏰</span> Overdue
+          {% if overdue_count > 0 %}
+          <span style="margin-left: auto; background: #ef4444; color: white; font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">{{ overdue_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('can_archive') %}
+        <a href="{{ url_for('dispatch.archive_list') }}" class="nav-item {% if request.endpoint == 'dispatch.archive_list' %}active{% endif %}">
+          <span class="icon">🗄️</span> Archive
+        </a>
+        {% endif %}
+        {% endif %}
+        
+        <!-- Common for all -->
+        <div class="nav-section-title">Tools</div>
+        <a href="javascript:void(0)" onclick="openExportModal()" class="nav-item">
+          <span class="icon">📊</span> Export Excel Data
+        </a>
+        <a href="{{ url_for('tracking.track_home') }}" class="nav-item" target="_blank">
+          <span class="icon">🗺️</span> Track Parcel
+        </a>
+        <a href="{{ url_for('tracking.pushpak_track_page') }}" class="nav-item {% if request.endpoint == 'tracking.pushpak_track_page' %}active{% endif %}" style="{% if request.endpoint == 'tracking.pushpak_track_page' %}background: rgba(249,115,22,0.15); color: #f97316;{% endif %}">
+          <span class="icon">🚚</span> Pushpak Track
+        </a>
+        
+      </nav>
+      
+      <div class="sidebar-footer">
+        <a href="{{ url_for('auth.profile') }}" class="user-card" style="text-decoration: none; color: inherit; transition: background 0.2s;" title="Click to Edit Profile">
+          <div class="user-avatar-sm">{{ (current_user.name|replace(' (Branch Login)', '')|replace('(Branch Login)', '')|trim)[0]|upper if current_user.name else 'U' }}</div>
+          <div class="user-info-text">
+            <div class="user-name" style="font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;">{{ (current_user.username or current_user.name)|replace(' (Branch Login)', '')|replace('(Branch Login)', '')|trim }}</div>
+            <div class="user-role" style="font-size: 11px; color: var(--accent-blue); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; text-transform: none; letter-spacing: normal;">{{ current_user.role_display }}</div>
+          </div>
+        </a>
+        <div style="margin-top: 12px; margin-bottom: 8px; display: flex; gap: 8px;">
+          <a href="{{ url_for('auth.profile') }}" class="btn btn-ghost btn-sm" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; background: rgba(79, 142, 247, 0.1); border: 1px solid rgba(79, 142, 247, 0.25); color: #4f8ef7; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            ⚙️ Profile
+          </a>
+          <button onclick="toggleTheme()" class="btn btn-ghost btn-sm" style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 8px; color: var(--text-secondary); cursor: pointer; border-radius: 6px;" title="Toggle Theme">
+            🌓
+          </button>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost btn-sm logout-btn">🚪 Logout</a>
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+      
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">☰</button>
+          <div>
+            <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            <div class="breadcrumb">{% block breadcrumb %}Home{% endblock %}</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <!-- Quick Track Search -->
+          <form action="{{ url_for('tracking.track_home') }}" method="GET" class="topbar-search">
+            <input type="text" name="q" placeholder="Quick track..." class="form-control search-input-sm" id="topbarSearchInput">
+            <button type="submit" class="btn btn-icon">🔍</button>
+          </form>
+          <a href="{{ url_for('auth.profile') }}" class="user-avatar" id="userAvatarBtn" style="text-decoration: none;" title="Edit My Profile">{{ current_user.name[0].upper() }}</a>
+        </div>
+      </header>
+      
+      <!-- Export Data Filter Modal -->
+      <div class="modal-wrapper" id="exportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:20px;">
+        <div style="width:100%; max-width:580px; padding:28px; border-radius:16px; border:1px solid rgba(79,142,247,0.3); background:#0d1b2a; color:#e8eaf6; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px; margin-bottom:20px;">
+            <h3 style="margin:0; font-size:18px; font-weight:700; color:white; display:flex; align-items:center; gap:8px;">
+              <span>📥</span> Export Parcel Data (Excel)
+            </h3>
+            <button onclick="closeExportModal()" style="background:none; border:none; color:#94a3b8; font-size:24px; cursor:pointer; padding:0; line-height:1;">&times;</button>
+          </div>
+          <form action="{{ url_for('reports.export_excel') }}" method="GET" style="display:flex; flex-direction:column; gap:14px;">
+            <!-- 1. Branch Filter -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">🏢 Select Branch</label>
+              <select name="branch_id" style="background:#1e293b; color:#f1f5f9; border:1px solid rgba(79,142,247,0.3); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; cursor:pointer;">
+                {% if current_user.role == 'superadmin' %}
+                <option value="all" style="background:#1e293b; color:#f1f5f9;">All Branches (Global Export)</option>
+                {% for b in all_branches %}
+                <option value="{{ b.id }}" style="background:#1e293b; color:#f1f5f9;">{{ b.name }} — {{ b.city }}</option>
+                {% endfor %}
+                {% else %}
+                <option value="{{ current_user.branch_id or 'all' }}" style="background:#1e293b; color:#f1f5f9;">{{ current_user.branch_name or 'My Branch' }}</option>
+                {% endif %}
+              </select>
+            </div>
+            <!-- 2. Direction Type -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">🔄 Parcel Direction</label>
+              <select name="direction" style="background:#1e293b; color:#f1f5f9; border:1px solid rgba(79,142,247,0.3); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; cursor:pointer;">
+                <option value="both" style="background:#1e293b; color:#f1f5f9;">Sent & Received Both</option>
+                <option value="sent" style="background:#1e293b; color:#f1f5f9;">Sent Only</option>
+                <option value="received" style="background:#1e293b; color:#f1f5f9;">Received Only</option>
+              </select>
+            </div>
+            <!-- 3 & 4. Transfer Mode + Status in a row -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">🚚 Transfer Mode</label>
+                <select name="transfer_mode" style="background:#1e293b; color:#f1f5f9; border:1px solid rgba(79,142,247,0.3); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; cursor:pointer;">
+                  <option value="all" style="background:#1e293b; color:#f1f5f9;">All Modes</option>
+                  <option value="by_courier" style="background:#1e293b; color:#f1f5f9;">By Courier</option>
+                  <option value="by_bus" style="background:#1e293b; color:#f1f5f9;">By Bus</option>
+                  <option value="by_hand" style="background:#1e293b; color:#f1f5f9;">By Hand</option>
+                </select>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">📊 Parcel Status</label>
+                <select name="report_type" style="background:#1e293b; color:#f1f5f9; border:1px solid rgba(79,142,247,0.3); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; cursor:pointer;">
+                  <option value="all" style="background:#1e293b; color:#f1f5f9;">All Statuses</option>
+                  <option value="pending" style="background:#1e293b; color:#f1f5f9;">Pending / In Transit</option>
+                  <option value="delivered" style="background:#1e293b; color:#f1f5f9;">Delivered</option>
+                  <option value="failed" style="background:#1e293b; color:#f1f5f9;">Failed / Returned</option>
+                </select>
+              </div>
+            </div>
+            <!-- 5. Courier Company -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">🏭 Courier Company</label>
+              <select name="courier_partner" style="background:#1e293b; color:#f1f5f9; border:1px solid rgba(79,142,247,0.3); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; cursor:pointer;">
+                <option value="all" style="background:#1e293b; color:#f1f5f9;">All Companies</option>
+                <option value="Blue Dart" style="background:#1e293b; color:#f1f5f9;">Blue Dart</option>
+                <option value="Pushpak" style="background:#1e293b; color:#f1f5f9;">Pushpak</option>
+                <option value="Professional" style="background:#1e293b; color:#f1f5f9;">Professional</option>
+                <option value="Trackon" style="background:#1e293b; color:#f1f5f9;">Trackon</option>
+                <option value="Other Company" style="background:#1e293b; color:#f1f5f9;">Other Company</option>
+              </select>
+            </div>
+            <!-- 6. Date Range -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">📅 From Date</label>
+                <input type="date" name="date_from" style="background:#1e293b; color:#f1f5f9; border:1px solid rgba(79,142,247,0.3); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; box-sizing:border-box;">
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="color:#94a3b8; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">📅 To Date</label>
+                <input type="date" name="date_to" style="background:#1e293b; color:#f1f5f9; border:1px solid rgba(79,142,247,0.3); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; box-sizing:border-box;">
+              </div>
+            </div>
+            <!-- Submit -->
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.1);">
+              <button type="button" onclick="closeExportModal()" style="padding:10px 20px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:transparent; color:#94a3b8; cursor:pointer; font-size:14px;">Cancel</button>
+              <button type="submit" style="padding:10px 24px; border-radius:8px; border:none; background:linear-gradient(135deg, #10b981, #22d3ee); color:white; font-weight:700; font-size:14px; cursor:pointer;">📥 Download Excel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <script>
+        function openExportModal() {
+          document.getElementById('exportModal').style.display = 'flex';
+        }
+        function closeExportModal() {
+          document.getElementById('exportModal').style.display = 'none';
+        }
+      </script>
+      
+      <!-- Flash Messages (Custom Premium Modal Alerts) -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <script>
+            document.addEventListener('DOMContentLoaded', () => {
+              {% for category, message in messages %}
+                showCustomAlert("{{ message|e }}", "{{ category }}");
+              {% endfor %}
+            });
+          </script>
+        {% endif %}
+      {% endwith %}
+      
+      <!-- Page Content -->
+      <main class="page-content">
+        {% if incoming_for_user %}
+        {% set in_count = incoming_alerts_count|default(incoming_for_user|length) %}
+        {% set out_count = outgoing_alerts_count|default(0) %}
+        <div class="incoming-alert-banner glass-card" style="margin-bottom: 24px; padding: 16px 20px; border-radius: 12px; border-left: 4px solid var(--accent-blue); display: flex; flex-direction: column; gap: 12px; background: linear-gradient(135deg, rgba(79, 142, 247, 0.1), rgba(139, 92, 246, 0.05)); animation: slideDown 0.4s ease-out;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">{% if in_count > 0 %}📬{% else %}📤{% endif %}</span>
+              <strong style="color: var(--text-primary); font-size: 14px;">
+                {% if in_count > 0 and out_count == 0 %}
+                  Incoming Courier Alert (You have {{ incoming_for_user|length }} pending file/request{{ 's' if incoming_for_user|length > 1 else '' }} on the way)
+                {% elif out_count > 0 and in_count == 0 %}
+                  Outgoing Courier Alert (You have {{ incoming_for_user|length }} dispatched file/request{{ 's' if incoming_for_user|length > 1 else '' }} in transit)
+                {% else %}
+                  Active Courier Alert (You have {{ incoming_for_user|length }} active file/request{{ 's' if incoming_for_user|length > 1 else '' }} in progress)
+                {% endif %}
+              </strong>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:18px;">&times;</button>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto; padding-right: 6px;">
+            {% for p in incoming_for_user %}
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--glass-border); font-size: 12px;">
+              <div>
+                <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}" style="font-family: monospace; font-weight: 600; color: var(--accent-blue); text-decoration: none;">{{ p.tracking_number }}</a>
+                {% if (p.user_alert_type|default('incoming')) == 'outgoing' %}
+                <span style="color: var(--text-secondary); margin-left: 8px;">to <strong>{{ p.receiver_name }}</strong> ({{ p.receiver_branch.name if p.receiver_branch else (p.receiver_department_name or 'Destination') }})</span>
+                {% else %}
+                <span style="color: var(--text-secondary); margin-left: 8px;">from <strong>{{ p.sender_name }}</strong> ({{ p.sender_branch.name if p.sender_branch else (p.sender_department_name or 'Source') }})</span>
+                {% endif %}
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                {% if (p.user_alert_type|default('incoming')) == 'outgoing' %}
+                <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa; padding: 2px 6px; border-radius: 4px; font-size: 11px;">Outgoing</span>
+                {% else %}
+                <span class="badge" style="background: rgba(79, 142, 247, 0.2); color: #4f8ef7; padding: 2px 6px; border-radius: 4px; font-size: 11px;">Incoming</span>
+                {% endif %}
+                <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 2px 6px; border-radius: 4px; font-size: 11px;">{{ p.status|replace('_', ' ')|title }}</span>
+                <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}" class="btn btn-sm" style="background: var(--gradient-primary); border: none; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; text-decoration: none; font-weight: 600;">View Detail</a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <style>
+          @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        </style>
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+      </main>
+      
+    </div>
+  </div>
+  
+  {% else %}
+  <!-- Non-authenticated layout (login page) -->
+  {% block auth_content %}{% endblock %}
+  {% endif %}
+  
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+  
+  <!-- Modal Container -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()" style="display:none"></div>
+  
+  <!-- Socket.IO library -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <!-- Main JS -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  
+  {% if current_user.is_authenticated %}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const socket = io({ transports: ['polling'] });
+      
+      socket.on('connect', () => {
+        document.getElementById('socketStatus')?.classList.add('connected');
+      });
+      
+      socket.on('disconnect', () => {
+        document.getElementById('socketStatus')?.classList.remove('connected');
+      });
+      
+      socket.on('realtime_notification', (data) => {
+        if (typeof showToast === 'function') {
+          showToast(data.message, data.type || 'info');
+        }
+        
+        // Notification chime sound
+        try {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav');
+          audio.volume = 0.4;
+          audio.play();
+        } catch(e) {
+          // Playback blocked or failed
+        }
+      });
+    });
+  </script>
+  {% endif %}
+  
+  {% block extra_js %}{% endblock %}
+  
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-utc]').forEach(el => {
+      const utcStr = el.getAttribute('data-utc');
+      if (utcStr && !utcStr.startsWith('None') && utcStr !== 'Z') {
+        const date = new Date(utcStr);
+        if (!isNaN(date.getTime())) {
+          const options = { 
+            day: '2-digit', 
+            month: 'short', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: true 
+          };
+          const format = el.getAttribute('data-format');
+          if (format === 'date-dmy') {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            el.textContent = `${day}-${month}-${year}`;
+          } else if (format === 'date-only') {
+            el.textContent = date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+          } else if (format === 'time-only') {
+            el.textContent = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
+          } else if (format === 'full') {
+            el.textContent = date.toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+          } else {
+            el.textContent = date.toLocaleString(undefined, options);
+          }
+        }
+      }
+    });
+  });
+  </script>
+  
+  <style>
+  /* Additional inline styles for base layout */
+  .flash-messages { padding: 0 24px; margin-bottom: -8px; }
+  .flash { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; font-size: 14px; animation: slideInUp 0.3s ease; }
+  .flash-success { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+  .flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+  .flash-warning { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .flash-info { background: rgba(79,142,247,0.15); color: #4f8ef7; border: 1px solid rgba(79,142,247,0.3); }
+  .flash button { background: none; border: none; color: inherit; cursor: pointer; font-size: 18px; opacity: 0.7; }
+  .search-input-sm { width: 200px; padding: 8px 14px; font-size: 13px; }
+  .topbar-search { display: flex; gap: 8px; align-items: center; }
+  .socket-status { width: 8px; height: 8px; border-radius: 50%; background: #64748b; transition: all 0.3s; }
+  .socket-status.connected { background: #10b981; box-shadow: 0 0 8px #10b981; }
+  .user-card { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .user-avatar-sm { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #4f8ef7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: white; flex-shrink: 0; }
+  .user-info-text { min-width: 0; }
+  .user-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 11px; color: #4f8ef7; text-transform: uppercase; letter-spacing: 1px; }
+  .user-branch { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .logout-btn { width: 100%; justify-content: center; margin-top: 4px; }
+  .logo-icon { font-size: 28px; }
+  .logo-text { font-size: 16px; font-weight: 800; background: linear-gradient(135deg, #4f8ef7, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo-sub { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-top: -2px; }
+  .sidebar-toggle { display: none; background: none; border: none; color: #94a3b8; font-size: 24px; cursor: pointer; margin-right: 12px; }
+  @media (max-width: 1024px) { .sidebar-toggle { display: block; } }
+  </style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('Service Worker registered successfully!', reg))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

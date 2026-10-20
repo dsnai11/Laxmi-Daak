@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard{% endblock %}
+{% block page_title %}Branch Dashboard{% endblock %}
+{% block breadcrumb %}Dashboard / {{ current_user.branch_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+  
+  <div class="welcome-banner">
+    <div class="welcome-text">
+      <div class="welcome-title-row">
+        <h2>{{ current_user.branch_name }}</h2>
+        <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); font-size: 11px; font-weight: 600;">CODE: {{ current_user.branch_code }}</span>
+      </div>
+      <div class="welcome-meta-row">
+        <span class="meta-pill role-pill">Branch Manager</span>
+        <span class="meta-pill">👥 {{ employees|length }} Active Staff</span>
+      </div>
+    </div>
+    <div class="welcome-action">
+      <a href="{{ url_for('dispatch.new_dispatch') }}" class="btn btn-sm btn-ghost" style="border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;">+ New Dispatch</a>
+      <a href="{{ url_for('scan.scanner') }}" class="btn-scan-action">
+        <span>📷</span> SCAN QR CODE
+      </a>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <a href="{{ url_for('dispatch.dispatch_list') }}" class="stat-card-link">
+      <div class="stat-card stat-blue">
+        <div class="stat-header">
+          <span class="stat-label">Parcel in Branch</span>
+          <span class="stat-icon-badge">📁</span>
+        </div>
+        <div class="stat-value">{{ stats.files_in_branch }}</div>
+        <div class="stat-footer">
+          <span>View branch parcels</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+    
+    <a href="{{ url_for('dispatch.dispatch_list') }}" class="stat-card-link">
+      <div class="stat-card stat-purple">
+        <div class="stat-header">
+          <span class="stat-label">Dispatched Today</span>
+          <span class="stat-icon-badge">📦</span>
+        </div>
+        <div class="stat-value">{{ stats.dispatched_today }}</div>
+        <div class="stat-footer">
+          <span>View dispatches</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+    
+    <a href="{{ url_for('dispatch.dispatch_list') }}?status=delivered" class="stat-card-link">
+      <div class="stat-card stat-green">
+        <div class="stat-header">
+          <span class="stat-label">Delivered Today</span>
+          <span class="stat-icon-badge">✅</span>
+        </div>
+        <div class="stat-value">{{ stats.delivered_today }}</div>
+        <div class="stat-footer">
+          <span>View delivered</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+    
+    <a href="{{ url_for('dispatch.dispatch_list') }}?status=pending" class="stat-card-link">
+      <div class="stat-card stat-orange">
+        <div class="stat-header">
+          <span class="stat-label">Pending</span>
+          <span class="stat-icon-badge">⏳</span>
+        </div>
+        <div class="stat-value">{{ stats.pending }}</div>
+        <div class="stat-footer">
+          <span>View pending</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="{{ url_for('dispatch.overdue_list') }}" class="stat-card-link">
+      <div class="stat-card stat-red">
+        <div class="stat-header">
+          <span class="stat-label" style="color: var(--accent-red);">Overdue</span>
+          <span class="stat-icon-badge">⏰</span>
+        </div>
+        <div class="stat-value" style="color:{% if stats.overdue > 0 %}#ef4444{% else %}var(--text-primary){% endif %};">{{ stats.overdue }}</div>
+        <div class="stat-footer">
+          <span>View overdue</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="bottom-row">
+    
+    <!-- Employee Performance -->
+    <div class="glass-card table-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">Employee Performance</h3>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Today's Scans</th>
+              <th>Total Handled</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp in employees %}
+            <tr>
+              <td style="color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <div style="width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #4f8ef7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white;">{{ emp.name[0] }}</div>
+                <span style="font-weight: 500;">{{ emp.name }}</span>
+              </td>
+              <td style="color: var(--text-secondary);">{{ emp.today_scans }}</td>
+              <td style="color: var(--text-secondary);">{{ emp.total_handled }}</td>
+              <td>
+                <span class="badge" style="background: {% if emp.active %}rgba(16,185,129,0.12){% else %}rgba(100,116,139,0.12){% endif %}; color: {% if emp.active %}var(--accent-green){% else %}var(--text-muted){% endif %}; font-size: 11px;">
+                  {{ 'Active' if emp.active else 'Inactive' }}
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="text-align: center; padding: 24px; color: var(--text-muted);">No employee data</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Pending Deliveries list -->
+    <div class="glass-card table-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">Action Required</h3>
+      </div>
+      <div class="pending-list">
+        {% for p in pending_deliveries %}
+        <div class="pending-item">
+          <div>
+            <div class="pending-tracking">{{ p.tracking_no }}</div>
+            <div class="pending-receiver">To: {{ p.receiver_name }}</div>
+          </div>
+          <span class="badge" style="background: {% if p.priority=='Urgent' %}rgba(239,68,68,0.12){% else %}rgba(245,158,11,0.12){% endif %}; color: {% if p.priority=='Urgent' %}var(--accent-red){% else %}var(--accent-orange){% endif %}; font-size: 11px;">
+            {{ p.priority }}
+          </span>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">No pending items 🎉</div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

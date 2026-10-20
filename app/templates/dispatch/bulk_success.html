@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Dispatch Success{% endblock %}
+{% block page_title %}✅ Bulk Dispatch Complete{% endblock %}
+{% block breadcrumb %}Dispatch / Bulk Upload / Success{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in" style="max-width: 960px; margin: 0 auto;">
+
+  <!-- Success Header -->
+  <div class="glass-card" style="padding: 32px; border-radius: 16px; margin-bottom: 24px; text-align: center; border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.05);">
+    <div style="font-size: 56px; margin-bottom: 12px;">🎉</div>
+    <h2 style="margin: 0 0 8px; color: var(--accent-green); font-size: 24px; font-weight: 700;">
+      {{ total }} Parcel{{ 's' if total != 1 else '' }} Successfully Dispatched!
+    </h2>
+    <p style="margin: 0; color: var(--text-secondary); font-size: 14px;">
+      Saare parcels dispatch ho gaye. Ab aap sab ke QR Labels ek saath print/download kar sakte ho.
+    </p>
+  </div>
+
+  <!-- Action Buttons -->
+  <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+    <a href="{{ url_for('dispatch.bulk_print_labels') }}" target="_blank"
+       class="btn btn-success"
+       style="padding: 12px 28px; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; text-decoration: none;">
+      🖨️ Print / Download All {{ total }} Labels (PDF)
+    </a>
+    <a href="{{ url_for('dispatch.dispatch_list') }}" class="btn btn-ghost"
+       style="padding: 12px 24px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+      📋 View All Parcels
+    </a>
+    <a href="{{ url_for('dispatch.bulk_dispatch') }}" class="btn btn-ghost"
+       style="padding: 12px 24px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+      📤 New Bulk Upload
+    </a>
+  </div>
+
+  <!-- Parcels Table -->
+  <div class="glass-card" style="padding: 24px; border-radius: 16px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+      <h3 style="margin: 0; color: var(--text-primary); font-size: 16px; font-weight: 600;">
+        📦 Dispatched Parcels — {{ total }} Total
+      </h3>
+      <a href="{{ url_for('dispatch.bulk_print_labels') }}" target="_blank"
+         style="font-size: 13px; color: var(--accent-blue); text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+        🖨️ Print All Labels →
+      </a>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="data-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th style="padding: 10px 14px;">#</th>
+            <th style="padding: 10px 14px;">Tracking No.</th>
+            <th style="padding: 10px 14px;">Sender</th>
+            <th style="padding: 10px 14px;">Receiver</th>
+            <th style="padding: 10px 14px;">Destination Branch</th>
+            <th style="padding: 10px 14px;">Mode</th>
+            <th style="padding: 10px 14px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for parcel in parcels %}
+          <tr>
+            <td style="padding: 10px 14px; color: var(--text-muted); font-size: 12px;">{{ loop.index }}</td>
+            <td style="padding: 10px 14px;">
+              <span style="font-family: monospace; font-size: 13px; font-weight: 700; color: var(--accent-blue); letter-spacing: 1px;">
+                {{ parcel.tracking_number }}
+              </span>
+            </td>
+            <td style="padding: 10px 14px; font-size: 13px; color: var(--text-primary);">
+              {{ parcel.sender_name or '—' }}
+            </td>
+            <td style="padding: 10px 14px; font-size: 13px; color: var(--text-primary);">
+              {{ parcel.receiver_name or '—' }}
+            </td>
+            <td style="padding: 10px 14px; font-size: 13px; color: var(--text-secondary);">
+              {{ parcel.receiver_branch_name or '—' }}
+            </td>
+            <td style="padding: 10px 14px;">
+              <span style="font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(79,142,247,0.15); color: var(--accent-blue); font-weight: 600;">
+                {{ parcel.transfer_mode_label or 'N/A' }}
+              </span>
+            </td>
+            <td style="padding: 10px 14px;">
+              <a href="{{ url_for('dispatch.print_label', tracking_no=parcel.tracking_number) }}" target="_blank"
+                 title="Print single label"
+                 style="font-size: 12px; color: var(--accent-green); text-decoration: none; padding: 4px 10px; border: 1px solid rgba(16,185,129,0.3); border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                🏷️ Label
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Bottom Print Button -->
+  <div style="text-align: center; margin-top: 24px;">
+    <a href="{{ url_for('dispatch.bulk_print_labels') }}" target="_blank"
+       class="btn btn-primary"
+       style="padding: 14px 40px; font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; text-decoration: none;">
+      🖨️ Print / Download All {{ total }} Labels
+    </a>
+    <p style="margin: 12px 0 0; font-size: 12px; color: var(--text-muted);">
+      Browser ka Print dialog aayega → "Save as PDF" select karo → Download ho jayega
+    </p>
+  </div>
+
+</div>
+{% endblock %}

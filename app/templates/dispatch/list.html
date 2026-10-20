@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Parcels List{% endblock %}
+{% block page_title %}All Parcels{% endblock %}
+{% block breadcrumb %}Operations / Parcels{% endblock %}
+
+{% block content %}
+<div class="list-container animate-fade-in">
+  
+  <!-- Filter Bar -->
+  <div class="filter-bar glass-card" style="padding: 16px; border-radius: 12px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
+    
+    <form class="filters" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; flex: 1;">
+      <div style="position: relative;">
+        <input type="text" name="search" placeholder="Search tracking #, name..." value="{{ request.args.get('search', '') }}" class="form-control" style="padding: 8px 12px 8px 32px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; width: 200px; font-size: 13px;">
+        <span style="position: absolute; left: 10px; top: 9px; font-size: 12px; color: var(--text-muted);">🔍</span>
+      </div>
+      
+      <select name="status" class="form-control" style="padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 13px;">
+        <option value="" style="background: var(--bg-primary); color: var(--text-primary);">All Statuses</option>
+        <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Pending</option>
+        <option value="in_transit" {% if request.args.get('status') == 'in_transit' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">In Transit</option>
+        <option value="delivered" {% if request.args.get('status') == 'delivered' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Delivered</option>
+        <option value="failed" {% if request.args.get('status') == 'failed' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Failed</option>
+        <option value="returned" {% if request.args.get('status') == 'returned' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Returned</option>
+      </select>
+      
+      {% if current_user.role == 'superadmin' %}
+      <select name="branch" class="form-control" style="padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 13px;">
+        <option value="" style="background: var(--bg-primary); color: var(--text-primary);">All Branches</option>
+        {% for b in branches %}
+        <option value="{{ b.id }}" {% if request.args.get('branch')|string == b.id|string %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">{{ b.name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      
+      <select name="department" class="form-control" style="padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 13px;">
+        <option value="" style="background: var(--bg-primary); color: var(--text-primary);">All Departments</option>
+        {% for d in departments %}
+        <option value="{{ d.id }}" {% if selected_dept|string == d.id|string %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">{{ d.name }}</option>
+        {% endfor %}
+      </select>
+      
+      <button type="submit" class="btn btn-primary" style="padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;">Filter</button>
+      <a href="{{ url_for('dispatch.dispatch_list') }}" style="color: var(--text-muted); font-size: 12px; text-decoration: none; margin-left: 8px;">Clear</a>
+    </form>
+    
+    {% if current_user.role in ('superadmin', 'manager') %}
+    <div>
+      <a href="{{ url_for('dispatch.new_dispatch') }}" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
+        <span>+</span> New Dispatch
+      </a>
+    </div>
+    {% endif %}
+  </div>
+  
+  <!-- Data Table -->
+  <div class="glass-card" style="border-radius: 12px; overflow: hidden; padding: 0;">
+    <div class="table-responsive" style="overflow-x: auto;">
+      <table class="data-table" style="width: 100%; text-align: left; border-collapse: collapse;">
+        <thead>
+          <tr style="background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--glass-border);">
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Tracking No.</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Date</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Route</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Transfer Mode</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Priority</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Status</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in parcels.items %}
+          <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s;">
+            <td style="padding: 16px; font-size: 14px;">
+              <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}" style="font-family: 'Courier New', monospace; color: #4f8ef7; font-weight: 600; text-decoration: none;">{{ p.tracking_number }}</a>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">{{ p.description[:30] }}{% if p.description and p.description|length > 30 %}...{% endif %}</div>
+            </td>
+            <td style="padding: 16px; font-size: 13px; color: var(--text-secondary);">
+              {% if p.dispatched_at %}
+              <span data-utc="{{ p.dispatched_at.isoformat() }}Z" data-format="date-dmy">{{ p.dispatched_at.strftime('%d-%m-%Y') }}</span><br>
+              <span style="font-size: 11px; color: var(--text-muted);" data-utc="{{ p.dispatched_at.isoformat() }}Z" data-format="time-only">{{ p.dispatched_at.strftime('%I:%M %p') }}</span>
+              {% else %}
+              —
+              {% endif %}
+            </td>
+            <td style="padding: 16px; font-size: 13px; color: var(--text-primary);">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span title="{{ p.sender_branch.name if p.sender_branch else 'Unknown' }}" style="font-weight: 600;">{{ p.sender_branch.branch_code if p.sender_branch else '—' }}</span>
+                  <span style="color: var(--text-muted);">→</span>
+                  <span title="{{ p.receiver_branch.name if p.receiver_branch else 'Unknown' }}" style="font-weight: 600;">{{ p.receiver_branch.branch_code if p.receiver_branch else '—' }}</span>
+                </div>
+                {% if p.sender_department_name or p.receiver_department_name %}
+                <div style="font-size: 11px; color: #22d3ee; display: flex; align-items: center; gap: 6px;">
+                  <span>{{ p.sender_department_name or '—' }}</span>
+                  <span style="color: var(--text-muted);">→</span>
+                  <span>{{ p.receiver_department_name or '—' }}</span>
+                </div>
+                {% endif %}
+              </div>
+            </td>
+            <td style="padding: 16px; font-size: 13px;">
+              <span style="font-weight: 500; color: var(--accent-blue);">{{ p.transfer_mode_label }}</span>
+              {% if p.transfer_mode == 'by_courier' and p.courier_partner %}
+              <div style="font-size: 11px; color: #10b981; margin-top: 4px; font-weight: 600;">🚚 {{ p.courier_partner }}</div>
+              {% if p.courier_id %}
+              <div style="font-family: monospace; font-size: 11px; color: #22d3ee; margin-top: 2px;">ID: {{ p.courier_id }}</div>
+              {% endif %}
+              {% if p.courier_partner == 'Pushpak' %}
+                {% if p.pushpak_booking_status == 'booked' %}
+                <span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-top: 3px; display: inline-block;">✅ Pushpak Booked</span>
+                {% elif p.pushpak_booking_status == 'pickup_requested' %}
+                <span class="badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-top: 3px; display: inline-block;">📦 Pickup Req</span>
+                {% endif %}
+              {% endif %}
+              {% endif %}
+            </td>
+            <td style="padding: 16px;">
+              {% if p.priority == 'normal' or p.priority == 'Normal' %}
+              <span class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-secondary); padding: 4px 8px; border-radius: 4px; font-size: 11px;">Normal</span>
+              {% elif p.priority == 'urgent' %}
+              <span class="badge" style="background: rgba(245,158,11,0.1); color: #f59e0b; padding: 4px 8px; border-radius: 4px; font-size: 11px;">Urgent</span>
+              {% else %}
+              <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444; padding: 4px 8px; border-radius: 4px; font-size: 11px;">Express</span>
+              {% endif %}
+            </td>
+            <td style="padding: 16px;">
+              <span class="badge badge-{{ p.status }}">{{ p.status_label }}</span>
+            </td>
+            <td style="padding: 16px; text-align: right;">
+              <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <a href="{{ url_for('tracking.track_home', q=p.tracking_number) }}" target="_blank" class="btn btn-icon" style="background: var(--bg-card); border: 1px solid var(--glass-border); color: var(--text-primary); width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none;" title="Track">🗺️</a>
+                <a href="{{ url_for('dispatch.dispatch_success', tracking_number=p.tracking_number) }}" class="btn btn-icon" style="background: var(--bg-card); border: 1px solid var(--glass-border); color: var(--text-primary); width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none;" title="Print Label">🖨️</a>
+                {% if current_user.role == 'superadmin' or p.created_by == current_user.id %}
+                <a href="{{ url_for('dispatch.edit_dispatch', tracking_number=p.tracking_number) }}" class="btn btn-icon" style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #f59e0b; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none;" title="Edit Parcel">✏️</a>
+                {% if p.status in ['delivered', 'closed', 'failed', 'returned'] %}
+                <button onclick="archiveParcel('{{ p.id }}', this)" class="btn btn-icon" style="background: rgba(100,116,139,0.12); border: 1px solid rgba(100,116,139,0.3); color: #94a3b8; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer;" title="Archive Parcel">🗄️</button>
+                {% endif %}
+                <button onclick="deleteParcel('{{ p.id }}', '{{ p.tracking_number }}')" class="btn btn-icon" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #ef4444; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer;" title="Delete Parcel">🗑️</button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+              <div style="font-size: 32px; margin-bottom: 12px;">📭</div>
+              No parcels found matching criteria.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if parcels.total > 0 %}
+    <div style="padding: 16px; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+      <div style="color: var(--text-muted); font-size: 12px;">Showing {{ parcels.items|length }} of {{ parcels.total }} results</div>
+      <div style="display: flex; gap: 8px;">
+        {% if parcels.has_prev %}
+        <a href="{{ url_for('dispatch.dispatch_list', page=parcels.prev_num, status=status, search=search, branch=request.args.get('branch','')) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Prev</a>
+        {% else %}
+        <button class="btn btn-sm" disabled style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; cursor: not-allowed; font-size: 13px;">Prev</button>
+        {% endif %}
+        
+        {% if parcels.has_next %}
+        <a href="{{ url_for('dispatch.dispatch_list', page=parcels.next_num, status=status, search=search, branch=request.args.get('branch','')) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Next</a>
+        {% else %}
+        <button class="btn btn-sm" disabled style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; cursor: not-allowed; font-size: 13px;">Next</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const _csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+function deleteParcel(id, trackingNo) {
+  if (!confirm(`⚠️ WARNING: Are you sure you want to permanently delete parcel ${trackingNo}?\nThis action cannot be undone and will delete all tracking scan history.`)) {
+    return;
+  }
+  
+  fetch(`/dispatch/delete/${id}`, {
+    method: "POST"
+  })
+  .then(res => res.json())
+  .then(res => {
+    if (res.success) {
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("An error occurred while deleting the parcel.");
+  });
+}
+
+function archiveParcel(parcelId, btn) {
+  if (!confirm('Archive this parcel? It will be hidden from the main list and moved to Archive.')) return;
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+  fetch(`/dispatch/archive/${parcelId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrfToken }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const row = btn.closest('tr');
+      if (row) { row.style.transition = 'opacity 0.5s, max-height 0.5s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 500); }
+      showListToast('🗄️ Parcel archived successfully!', '#10b981');
+    } else {
+      btn.disabled = false; btn.style.opacity = '1';
+      showListToast('❌ ' + (data.message || 'Could not archive'), '#ef4444');
+    }
+  });
+}
+
+function showListToast(msg, color) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${color};color:white;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.35);`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+</script>
+{% endblock %}
+

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track Parcel | Laxmi Daak</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <style>
+    body { background-color: var(--bg-primary); color: var(--text-primary); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background-color 0.3s, color 0.3s; }
+    .header { padding: 24px; text-align: center; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary); }
+    .logo { font-size: 24px; font-weight: 800; background: linear-gradient(135deg, #4f8ef7, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-flex; align-items: center; gap: 8px; }
+    .main-container { max-width: 800px; margin: 40px auto; padding: 0 20px; flex: 1; width: 100%; box-sizing: border-box; }
+    
+    .search-box { display: flex; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 8px; box-shadow: var(--shadow-glass); backdrop-filter: blur(10px); }
+    .search-box input { flex: 1; background: transparent; border: none; color: var(--text-primary); padding: 16px; font-size: 16px; font-family: monospace; letter-spacing: 2px; }
+    .search-box input:focus { outline: none; }
+    .search-box button { background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 0 32px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: opacity 0.3s; }
+    .search-box button:hover { opacity: 0.9; }
+    
+    /* Progress Bar */
+    .progress-track { display: flex; justify-content: space-between; position: relative; margin: 40px 0 60px 0; }
+    .progress-track::before { content: ''; position: absolute; top: 15px; left: 0; right: 0; height: 2px; background: var(--glass-border); z-index: 1; }
+    .progress-fill { position: absolute; top: 15px; left: 0; height: 2px; background: #4f8ef7; z-index: 2; transition: width 1s ease; }
+    .step { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 90px; }
+    .step-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-primary); border: 2px solid var(--glass-border); display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.3s; }
+    .step.active .step-icon { background: #4f8ef7; border-color: #4f8ef7; box-shadow: 0 0 15px rgba(79,142,247,0.5); color: white; }
+    .step.completed .step-icon { background: #10b981; border-color: #10b981; color: white; }
+    .step-label { font-size: 11px; color: var(--text-muted); text-align: center; font-weight: 500; text-transform: uppercase; }
+    .step.active .step-label, .step.completed .step-label { color: var(--text-primary); }
+    
+    /* Timeline */
+    .timeline { position: relative; padding-left: 30px; margin-top: 32px; }
+    .timeline::before { content: ''; position: absolute; top: 0; bottom: 0; left: 11px; width: 2px; background: var(--glass-border); }
+    .timeline-item { position: relative; margin-bottom: 24px; }
+    .timeline-item::before { content: ''; position: absolute; left: -24px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg-primary); border: 2px solid #4f8ef7; }
+    .timeline-item:first-child::before { background: #4f8ef7; box-shadow: 0 0 10px rgba(79,142,247,0.5); }
+    .time-date { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
+    .timeline-content { background: var(--bg-card); border: 1px solid var(--glass-border); padding: 16px; border-radius: 8px; backdrop-filter: blur(5px); }
+    .timeline-title { font-weight: 600; color: var(--text-primary); font-size: 15px; margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .timeline-desc { color: var(--text-secondary); font-size: 13px; }
+    
+    .footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--glass-border); background: var(--bg-secondary); margin-top: auto; }
+  </style>
+  <script>
+    // Run theme setup synchronously to avoid flash of theme
+    (function() {
+      const theme = localStorage.getItem('theme') || 'dark';
+      if (theme === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <header class="header">
+    <div style="max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
+      <div class="logo">
+        <span>🏠</span> Laxmi Daak
+      </div>
+      <button onclick="toggleTheme()" class="btn btn-ghost btn-sm" style="display: flex; align-items: center; gap: 8px; font-size: 12px; background: var(--bg-card); border: 1px solid var(--glass-border); padding: 8px 12px; color: var(--text-secondary); cursor: pointer; border-radius: 6px;">
+        🌓 Toggle Theme
+      </button>
+    </div>
+  </header>
+  
+  <div class="main-container">
+    
+    <div style="text-align: center; margin-bottom: 32px;">
+      <h1 style="margin: 0 0 8px 0; font-size: 28px; color: var(--text-primary);">Track Your Parcel</h1>
+      <p style="color: var(--text-secondary); margin: 0;">Enter your tracking number below to get live updates.</p>
+    </div>
+    
+    <form action="{{ url_for('tracking.track_home') }}" method="GET" class="search-box">
+      <input type="text" name="q" placeholder="Tracking Number (e.g. CRR-2026-...) or Pushpak Docket No" value="{{ tracking_number or '' }}" required style="text-transform: uppercase;">
+      <button type="submit">Track</button>
+    </form>
+
+    {# Direct Pushpak Consignment Tracker (ADD-ON) #}
+    <div style="margin-top: 14px; text-align: center;">
+      <button type="button" onclick="toggleDirectPushpakTracker()" style="background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.3); color: #f97316; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+        🚚 Have a Pushpak Docket Number directly? Click here
+      </button>
+      <div id="directPushpakBox" style="display: none; margin-top: 12px; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; text-align: left;">
+        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; font-weight: 600;">Enter Pushpak Docket / AWB Number:</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="directPushpakInput" placeholder="e.g. 14162273129" class="form-control" style="flex: 1; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14px; font-family: monospace;">
+          <button type="button" onclick="trackDirectPushpak()" style="background: linear-gradient(135deg, #f97316, #ea580c); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; white-space: nowrap;">Track Live</button>
+        </div>
+        <div id="directPushpakResult" style="margin-top: 12px; display: none;"></div>
+      </div>
+    </div>
+    
+    {% if error %}
+    <div style="text-align: center; padding: 30px 20px; margin-top: 24px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px;">
+      <div style="font-size: 36px; margin-bottom: 8px;">❌</div>
+      <h3 style="color: var(--accent-red); margin: 0 0 8px 0;">No Parcel Found in Laxmi Daak</h3>
+      <p style="color: var(--text-primary); margin: 0 0 16px;">{{ error }}</p>
+      {% if tracking_number %}
+      <button type="button" onclick="trackOnPushpak('{{ tracking_number }}')" style="background: linear-gradient(135deg, #f97316, #ea580c); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+        📡 Check directly on Pushpak Courier API with "{{ tracking_number }}"
+      </button>
+      <div id="pushpakTrackResult" style="margin-top: 16px; text-align: left; display: none;"></div>
+      {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if parcel %}
+    <div class="result-area animate-slide-up" style="margin-top: 40px;">
+      
+      <!-- Summary Card -->
+      <div class="glass-card" style="padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; margin-bottom: 16px;">
+          <div>
+            <div style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Tracking Number</div>
+            <div style="font-family: monospace; font-size: 24px; font-weight: 700; color: #4f8ef7;">{{ parcel.tracking_number }}</div>
+          </div>
+          <div>
+            <span class="badge badge-{{ parcel.status }}">{{ parcel.status_label }}</span>
+          </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div>
+            <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">From</div>
+            <div style="color: var(--text-primary); font-weight: 600; font-size: 15px;">{{ parcel.sender_name }}</div>
+            <div style="color: var(--text-secondary); font-size: 13px;">{{ parcel.sender_branch.name if parcel.sender_branch else 'HQ' }}</div>
+          </div>
+          <div>
+            <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">To</div>
+            <div style="color: var(--text-primary); font-weight: 600; font-size: 15px;">{{ parcel.receiver_name }}</div>
+            <div style="color: var(--text-secondary); font-size: 13px;">{{ parcel.receiver_branch.name if parcel.receiver_branch else 'HQ' }}</div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--glass-border); display: grid; grid-template-columns: 2fr 1fr 1.2fr; gap: 20px;">
+          <div>
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Items / Description</div>
+            <div style="color: var(--text-primary); font-size: 14px; font-weight: 500;">{{ parcel.description or '—' }}</div>
+          </div>
+          <div>
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Weight</div>
+            <div style="color: var(--text-primary); font-size: 14px; font-weight: 500;">{{ parcel.weight or '0.0' }} kg</div>
+          </div>
+          <div>
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Transfer Mode</div>
+            <div style="color: #4f8ef7; font-size: 14px; font-weight: 600;">
+              {{ parcel.transfer_mode_label }}
+              {% if parcel.transfer_mode == 'by_courier' and parcel.courier_partner %}
+              <span style="display:block; font-size: 12px; color: #10b981; font-weight: 600; margin-top: 2px;">(🚚 {{ parcel.courier_partner }})</span>
+              {% endif %}
+              {% if parcel.transfer_mode == 'by_courier' and parcel.courier_id %}
+              <span style="display:block; font-family: monospace; font-size: 11px; color: #22d3ee; font-weight: 600; margin-top: 2px;">ID: {{ parcel.courier_id }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {# ===== PUSHPAK LIVE TRACKING SECTION (ADD-ON) ===== #}
+        {% if parcel.transfer_mode == 'by_courier' and parcel.courier_partner == 'Pushpak' and parcel.courier_id %}
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--glass-border);">
+          <button onclick="trackOnPushpak('{{ parcel.courier_id }}')" style="width:100%; background: linear-gradient(135deg, #f97316, #ea580c); border: none; color: white; padding: 14px 20px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.3s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+            📡 Track Live on Pushpak Courier
+          </button>
+          <div id="pushpakTrackResult" style="margin-top: 12px; display: none;"></div>
+        </div>
+        {% endif %}
+        {# ===== END PUSHPAK LIVE TRACKING SECTION ===== #}
+
+      </div>
+      
+      {% if parcel.status == 'delivered' %}
+      <div style="background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.25)); border: 1px solid rgba(16,185,129,0.3); padding: 16px; border-radius: 8px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+        <div style="font-size: 24px;">🎉</div>
+        <div>
+          <h4 style="margin: 0 0 4px 0; color: #10b981; font-size: 15px; font-weight: 600;">Successfully Delivered</h4>
+          <p style="margin: 0; color: var(--text-primary); font-size: 13px;">This parcel has reached its destination and was received.</p>
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- Visual Progress -->
+      <div class="progress-track">
+        <div class="progress-fill" style="width: {{ progress }}%;"></div>
+        
+        <div class="step completed">
+          <div class="step-icon">📦</div>
+          <div class="step-label">Dispatched</div>
+        </div>
+        
+        <div class="step {% if parcel.status in ['in_transit', 'out_for_delivery', 'delivered'] %}completed{% endif %} {% if parcel.status == 'pending' %}active{% endif %}">
+          <div class="step-icon">🏢</div>
+          <div class="step-label">In Transit</div>
+        </div>
+        
+        <div class="step {% if parcel.status in ['out_for_delivery', 'delivered'] %}completed{% endif %} {% if parcel.status == 'in_transit' %}active{% endif %}">
+          <div class="step-icon">🚚</div>
+          <div class="step-label">Out for Delivery</div>
+        </div>
+        
+        <div class="step {% if parcel.status == 'delivered' %}completed{% endif %} {% if parcel.status == 'out_for_delivery' %}active{% endif %}">
+          <div class="step-icon">✅</div>
+          <div class="step-label">Delivered</div>
+        </div>
+      </div>
+
+      <!-- Transit Path Hierarchy Overview -->
+      {% if scan_history %}
+      <div class="glass-card" style="padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+        <h3 style="margin-top: 0; color: var(--text-primary); font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+          <span>📍</span> Transit Path Hierarchy Overview
+        </h3>
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 12px; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--glass-border);">
+          {% for scan in scan_history %}
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: var(--bg-card); border: 1px solid var(--glass-border); padding: 10px 14px; border-radius: 8px; display: flex; flex-direction: column; min-width: 130px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+              <span style="font-weight: 700; color: var(--text-primary); font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                <span>{{ scan.action_icon }}</span> {{ scan.branch_name }}
+              </span>
+              <span style="font-size: 10px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; margin-top: 4px;">{{ scan.action_label }}</span>
+              <span style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;"><span data-utc="{{ scan.timestamp.isoformat() }}Z">{{ scan.timestamp.strftime('%d %b, %H:%M') }}</span></span>
+            </div>
+            {% if not loop.last %}
+            <div style="font-size: 20px; color: var(--accent-blue); font-weight: bold;">➔</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 18px;">Tracking History</h3>
+      
+      <div class="timeline">
+        {% for log in scan_history %}
+        <div class="timeline-item">
+          <div class="time-date"><span data-utc="{{ log.timestamp.isoformat() }}Z" data-format="full">{{ log.timestamp.strftime('%d %b %Y') }} at {{ log.timestamp.strftime('%I:%M %p') }}</span></div>
+          <div class="timeline-content">
+            <div class="timeline-title">
+              <span>{{ log.action_icon }} {{ log.action_label }}</span>
+              <span style="color: var(--text-muted); font-size: 12px;">🏢 {{ log.branch_name }}</span>
+            </div>
+            <div class="timeline-desc">
+              {{ log.notes }}
+              {% if log.employee_name %} • <span style="font-size: 11px; opacity: 0.7;">Scanned by: {{ log.employee_name }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      
+    </div>
+    {% endif %}
+    
+  </div>
+  
+  <footer class="footer">
+    &copy; 2026 {{ company_name|default('Laxmi Daak') }}. All rights reserved.
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const isLight = document.documentElement.classList.toggle('light-theme');
+      document.body.classList.toggle('light-theme', isLight);
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-utc]').forEach(el => {
+        const utcStr = el.getAttribute('data-utc');
+        if (utcStr && !utcStr.startsWith('None') && utcStr !== 'Z') {
+          const date = new Date(utcStr);
+          if (!isNaN(date.getTime())) {
+            const options = { 
+              day: '2-digit', 
+              month: 'short', 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              hour12: true 
+            };
+            const format = el.getAttribute('data-format');
+            if (format === 'date-only') {
+              el.textContent = date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+            } else if (format === 'time-only') {
+              el.textContent = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
+            } else if (format === 'full') {
+              el.textContent = date.toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+            } else {
+              el.textContent = date.toLocaleString(undefined, options);
+            }
+          }
+        }
+      });
+    });
+
+    // ========== PUSHPAK LIVE TRACKING (ADD-ON) ==========
+    function trackOnPushpak(docketNo) {
+      var resultDiv = document.getElementById('pushpakTrackResult');
+      if (!resultDiv) return;
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<div style="text-align:center;padding:20px;"><span style="font-size:24px;">⏳</span><p style="color:var(--text-secondary);margin:8px 0 0;">Fetching tracking data from Pushpak...</p></div>';
+
+      fetch('/api/pushpak/track/' + docketNo)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) {
+          resultDiv.innerHTML = '<div style="text-align:center;padding:16px;background:rgba(239,68,68,0.1);border-radius:8px;border:1px solid rgba(239,68,68,0.2);"><span style="font-size:24px;">❌</span><p style="color:#ef4444;margin:8px 0 0;">' + data.message + '</p></div>';
+          return;
+        }
+        var html = '<div style="background:var(--bg-secondary);border:1px solid var(--glass-border);border-radius:12px;padding:16px;">';
+        html += '<h4 style="margin:0 0 12px;color:var(--text-primary);font-size:15px;">📡 Pushpak Live Tracking — ' + docketNo + '</h4>';
+        if (data.sender || data.recipient) {
+          html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">';
+          if (data.sender) { html += '<div style="background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--glass-border);"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Sender</div><div style="font-weight:600;color:var(--text-primary);font-size:13px;">' + (data.sender.name || '—') + '</div></div>'; }
+          if (data.recipient) { html += '<div style="background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--glass-border);"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Recipient</div><div style="font-weight:600;color:var(--text-primary);font-size:13px;">' + (data.recipient.name || '—') + '</div></div>'; }
+          html += '</div>';
+        }
+        if (data.transit_history && data.transit_history.length > 0) {
+          html += '<h5 style="margin:0 0 8px;color:var(--text-primary);font-size:13px;">🗺️ Transit History</h5>';
+          data.transit_history.forEach(function(event) {
+            var dotColor = event.type === '5' ? '#10b981' : '#4f8ef7';
+            html += '<div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start;">';
+            html += '<div style="width:8px;height:8px;border-radius:50%;background:' + dotColor + ';margin-top:5px;flex-shrink:0;"></div>';
+            html += '<div style="flex:1;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--glass-border);">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+            html += '<span style="font-weight:600;color:var(--text-primary);font-size:13px;">' + event.type_icon + ' ' + event.type_label + '</span>';
+            html += '<span style="font-size:10px;color:var(--text-muted);">' + (event.date || '') + ' ' + (event.time || '') + '</span>';
+            html += '</div>';
+            if (event.location) html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">📍 ' + event.location + '</div>';
+            if (event.remarks) html += '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-style:italic;">' + event.remarks + '</div>';
+            html += '</div></div>';
+          });
+        } else {
+          html += '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:13px;">📋 No transit history available yet.</div>';
+        }
+        if (data.pod_data && data.pod_data.delivered_to) {
+          html += '<div style="margin-top:12px;padding:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:6px;">';
+          html += '<div style="font-size:13px;color:#10b981;font-weight:700;">✅ Proof of Delivery</div>';
+          html += '<div style="font-size:12px;color:var(--text-primary);margin-top:4px;">Delivered to: <strong>' + data.pod_data.delivered_to + '</strong></div>';
+          if (data.pod_data.date) html += '<div style="font-size:11px;color:var(--text-secondary);">Date: ' + data.pod_data.date + '</div>';
+          html += '</div>';
+        }
+        html += '</div>';
+        resultDiv.innerHTML = html;
+      })
+      .catch(function(err) {
+        resultDiv.innerHTML = '<div style="text-align:center;padding:16px;background:rgba(239,68,68,0.1);border-radius:8px;"><span style="font-size:24px;">❌</span><p style="color:#ef4444;margin:8px 0 0;">Error: ' + err.message + '</p></div>';
+      });
+    }
+
+    function toggleDirectPushpakTracker() {
+      var box = document.getElementById('directPushpakBox');
+      if (!box) return;
+      box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+      if (box.style.display === 'block') {
+        var inp = document.getElementById('directPushpakInput');
+        if (inp) inp.focus();
+      }
+    }
+
+    function trackDirectPushpak() {
+      var inp = document.getElementById('directPushpakInput');
+      var res = document.getElementById('directPushpakResult');
+      if (!inp || !res) return;
+      var docket = inp.value.trim();
+      if (!docket) {
+        res.style.display = 'block';
+        res.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:8px 0;">Please enter a Pushpak docket number.</div>';
+        return;
+      }
+      res.style.display = 'block';
+      res.innerHTML = '<div style="text-align:center;padding:20px;"><span style="font-size:24px;">⏳</span><p style="color:var(--text-secondary);margin:8px 0 0;">Connecting to Pushpak Courier API...</p></div>';
+
+      fetch('/api/pushpak/track/' + docket)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) {
+          res.innerHTML = '<div style="text-align:center;padding:16px;background:rgba(239,68,68,0.1);border-radius:8px;border:1px solid rgba(239,68,68,0.2);"><span style="font-size:24px;">❌</span><p style="color:#ef4444;margin:8px 0 0;">' + data.message + '</p></div>';
+          return;
+        }
+        var html = '<div style="background:var(--bg-primary);border:1px solid var(--glass-border);border-radius:10px;padding:16px;margin-top:8px;">';
+        html += '<h4 style="margin:0 0 12px;color:var(--text-primary);font-size:15px;">📡 Pushpak Status — ' + docket + '</h4>';
+        if (data.sender || data.recipient) {
+          html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">';
+          if (data.sender) { html += '<div style="background:var(--bg-card);padding:10px;border-radius:6px;border:1px solid var(--glass-border);"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Sender</div><div style="font-weight:600;color:var(--text-primary);font-size:13px;">' + (data.sender.name || '—') + '</div></div>'; }
+          if (data.recipient) { html += '<div style="background:var(--bg-card);padding:10px;border-radius:6px;border:1px solid var(--glass-border);"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:600;">Recipient</div><div style="font-weight:600;color:var(--text-primary);font-size:13px;">' + (data.recipient.name || '—') + '</div></div>'; }
+          html += '</div>';
+        }
+        if (data.transit_history && data.transit_history.length > 0) {
+          html += '<h5 style="margin:0 0 8px;color:var(--text-primary);font-size:13px;">🗺️ Transit History</h5>';
+          data.transit_history.forEach(function(event) {
+            var dotColor = event.type === '5' ? '#10b981' : '#4f8ef7';
+            html += '<div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start;">';
+            html += '<div style="width:8px;height:8px;border-radius:50%;background:' + dotColor + ';margin-top:5px;flex-shrink:0;"></div>';
+            html += '<div style="flex:1;background:var(--bg-card);padding:10px;border-radius:6px;border:1px solid var(--glass-border);">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+            html += '<span style="font-weight:600;color:var(--text-primary);font-size:13px;">' + event.type_icon + ' ' + event.type_label + '</span>';
+            html += '<span style="font-size:10px;color:var(--text-muted);">' + (event.date || '') + ' ' + (event.time || '') + '</span>';
+            html += '</div>';
+            if (event.location) html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">📍 ' + event.location + '</div>';
+            if (event.remarks) html += '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-style:italic;">' + event.remarks + '</div>';
+            html += '</div></div>';
+          });
+        } else {
+          html += '<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:13px;">📋 No transit history available yet.</div>';
+        }
+        if (data.pod_data && data.pod_data.delivered_to) {
+          html += '<div style="margin-top:12px;padding:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:6px;">';
+          html += '<div style="font-size:13px;color:#10b981;font-weight:700;">✅ Proof of Delivery</div>';
+          html += '<div style="font-size:12px;color:var(--text-primary);margin-top:4px;">Delivered to: <strong>' + data.pod_data.delivered_to + '</strong></div>';
+          if (data.pod_data.date) html += '<div style="font-size:11px;color:var(--text-secondary);">Date: ' + data.pod_data.date + '</div>';
+          html += '</div>';
+        }
+        html += '</div>';
+        res.innerHTML = html;
+      })
+      .catch(function(err) {
+        res.innerHTML = '<div style="text-align:center;padding:16px;background:rgba(239,68,68,0.1);border-radius:8px;"><span style="font-size:24px;">❌</span><p style="color:#ef4444;margin:8px 0 0;">Error: ' + err.message + '</p></div>';
+      });
+    }
+    // ========== END PUSHPAK LIVE TRACKING ==========
+  </script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

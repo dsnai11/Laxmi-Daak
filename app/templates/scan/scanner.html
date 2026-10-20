@@ -1,0 +1,611 @@
+{% extends "base.html" %}
+
+{% block title %}QR Scanner{% endblock %}
+{% block page_title %}Live Scanner{% endblock %}
+{% block breadcrumb %}Operations / Scanner{% endblock %}
+
+{% block content %}
+<div class="scanner-wrapper animate-fade-in" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+  
+  <!-- Left Column: Scanner Input -->
+  <div class="scanner-left glass-card" style="padding: 24px; border-radius: 12px; display: flex; flex-direction: column;">
+    
+    <div class="scanner-tabs" style="display: flex; gap: 8px; margin-bottom: 20px; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 8px;">
+      <button class="tab-btn active" id="tabCamera" style="flex: 1; background: rgba(79,142,247,0.15); color: #4f8ef7; border: 1px solid rgba(79,142,247,0.3); padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 500;">📷 Camera</button>
+      <button class="tab-btn" id="tabUsb" style="flex: 1; background: transparent; color: var(--text-secondary); border: 1px solid transparent; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 500;">🔌 USB Scanner</button>
+    </div>
+    
+    <!-- Camera View -->
+    <div id="cameraContainer" style="flex: 1; min-height: 300px; background: #000; border-radius: 8px; overflow: hidden; position: relative; border: 2px solid var(--glass-border);">
+      <div id="qr-reader" style="width: 100%; height: 100%;"></div>
+      <div class="scan-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; border: 4px solid rgba(79,142,247,0.3); box-sizing: border-box; z-index: 10;">
+        <div class="scan-line" style="width: 100%; height: 2px; background: #4f8ef7; box-shadow: 0 0 10px #4f8ef7; animation: scanAnim 2s infinite linear;"></div>
+      </div>
+    </div>
+    
+    <!-- USB Mode View -->
+    <div id="usbContainer" style="display: none; flex: 1; min-height: 300px; background: var(--bg-primary); border-radius: 8px; border: 2px dashed var(--glass-border); align-items: center; justify-content: center; flex-direction: column;">
+      <div style="font-size: 48px; margin-bottom: 16px; animation: pulse 2s infinite;">🔌</div>
+      <h3 style="color: var(--text-primary); margin: 0 0 8px 0;">Scanner Ready</h3>
+      <p style="color: var(--text-muted); font-size: 14px; text-align: center; max-width: 200px;">Connect your USB scanner and scan a barcode. Ensure this window is focused.</p>
+    </div>
+    
+    <!-- Manual Entry -->
+    <div class="manual-entry" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
+      <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; text-transform: uppercase; font-weight: 600;">Manual Entry</label>
+      <form id="manualForm" style="display: flex; gap: 8px;">
+        <input type="text" id="manualTrackingNo" placeholder="Enter Tracking Number" class="form-control" style="flex: 1; padding: 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-family: monospace;">
+        <button type="submit" class="btn btn-primary" style="padding: 0 20px; border-radius: 6px; cursor: pointer;">Load</button>
+      </form>
+      <!-- Inline error message -->
+      <div id="scanErrorMsg" style="display:none; margin-top:10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 10px 14px; border-radius: 6px; font-size: 13px;"></div>
+    </div>
+    
+  </div>
+  
+  <!-- Right Column: Result Panel -->
+  <div class="scanner-right glass-card" style="padding: 24px; border-radius: 12px; display: flex; flex-direction: column;">
+    
+    <!-- Initial State -->
+    <div id="emptyState" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--text-muted);">
+      <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📦</div>
+      <h3 style="color: var(--text-secondary); margin: 0 0 8px 0;">Awaiting Scan</h3>
+      <p style="font-size: 14px; max-width: 250px;">Scan a QR code to load parcel details and perform actions.</p>
+    </div>
+    
+    <!-- Loading State -->
+    <div id="loadingState" style="display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center;">
+      <div class="spinner" style="width: 40px; height: 40px; border: 3px solid rgba(79,142,247,0.3); border-top-color: #4f8ef7; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p style="color: var(--text-secondary); margin-top: 16px;">Fetching details...</p>
+    </div>
+    
+    <!-- Result State -->
+    <div id="resultState" style="display: none; flex: 1; flex-direction: column;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+        <div>
+          <div style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Tracking Number</div>
+          <div id="resTrackingNo" style="font-family: monospace; font-size: 24px; font-weight: 700; color: #4f8ef7;"></div>
+        </div>
+        <div id="resStatusBadge" class="badge"></div>
+      </div>
+      
+      <div style="background: var(--bg-primary); padding: 16px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div>
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px;">From</div>
+            <div id="resSender" style="color: var(--text-primary); font-size: 13px; font-weight: 500;"></div>
+            <div id="resSource" style="color: var(--text-secondary); font-size: 12px;"></div>
+          </div>
+          <div>
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px;">To</div>
+            <div id="resReceiver" style="color: var(--text-primary); font-size: 13px; font-weight: 500;"></div>
+            <div id="resDest" style="color: var(--text-secondary); font-size: 12px;"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Description Row -->
+      <div style="background: var(--bg-primary); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--glass-border);">
+        <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px;">DESCRIPTION / CONTENTS</div>
+        <div id="resDescription" style="color: var(--text-primary); font-size: 13px;">—</div>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Action Notes (Optional)</label>
+        <textarea id="actionNotes" class="form-control" rows="2" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; resize: none;" placeholder="e.g. Package received in good condition, Receiver not available..."></textarea>
+      </div>
+      
+      <!-- Action Buttons Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto;">
+        <button class="action-btn" data-action="received" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          🏢 Receive at Branch
+        </button>
+        
+        <button class="action-btn" data-action="out_for_delivery" style="background: rgba(79,142,247,0.1); color: #4f8ef7; border: 1px solid rgba(79,142,247,0.3); padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          🚚 Out for Delivery
+        </button>
+        
+        <button class="action-btn" data-action="delivered" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; grid-column: span 2;">
+          ✅ Mark as Delivered
+        </button>
+        
+        <button class="action-btn" data-action="failed" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; grid-column: span 2;">
+          ❌ Delivery Failed
+        </button>
+      </div>
+      
+    </div>
+    
+  </div>
+
+</div>
+
+<!-- ===== OPTIONAL PHOTO POPUP MODAL (after scan complete) ===== -->
+<div id="photoPopupOverlay" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px); opacity:0; transition:opacity 0.3s ease;">
+  <div class="modal" style="background:var(--bg-card); border:1px solid var(--glass-border); border-radius:16px; padding:28px 28px 24px; max-width:420px; width:90%; box-shadow:0 25px 60px rgba(0,0,0,0.5); transform:translateY(20px); transition:transform 0.3s ease;">
+    
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div>
+        <h3 style="margin:0; color:var(--text-primary); font-size:18px; font-weight:700;">📸 Photo Proof <span style="font-size:12px; background:rgba(16,185,129,0.15); color:#10b981; padding:3px 10px; border-radius:20px; font-weight:500;">OPTIONAL</span></h3>
+        <p style="margin:6px 0 0; color:var(--text-muted); font-size:13px;">Attach a delivery photo for your records. You can skip this step.</p>
+      </div>
+    </div>
+
+    <!-- Success banner -->
+    <div id="photoPopupScanInfo" style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:10px 14px; margin-bottom:18px; font-size:13px; color:#10b981; font-weight:600;"></div>
+
+    <!-- Photo Area -->
+    <div id="photoPreviewArea" style="display:none; margin-bottom:14px; text-align:center;">
+      <img id="photoPreviewImg" src="" alt="Preview" style="max-width:100%; max-height:200px; border-radius:8px; border:2px solid var(--glass-border); object-fit:cover;" />
+      <button onclick="clearPhotoSelection()" style="margin-top:8px; background:none; border:1px solid rgba(239,68,68,0.3); color:#ef4444; padding:5px 14px; border-radius:6px; cursor:pointer; font-size:12px;">✕ Remove Photo</button>
+    </div>
+
+    <!-- Upload / Capture Buttons -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+      <label for="photoFileInput" style="display:flex; align-items:center; justify-content:center; gap:8px; background:rgba(79,142,247,0.1); border:1px dashed rgba(79,142,247,0.4); color:#4f8ef7; padding:14px; border-radius:10px; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.2s;" onmouseover="this.style.background='rgba(79,142,247,0.2)'" onmouseout="this.style.background='rgba(79,142,247,0.1)'">
+        📁 Choose File
+        <input type="file" id="photoFileInput" accept="image/*" style="display:none;" onchange="handlePhotoSelected(this)">
+      </label>
+      <label for="photoCameraInput" style="display:flex; align-items:center; justify-content:center; gap:8px; background:rgba(139,92,246,0.1); border:1px dashed rgba(139,92,246,0.4); color:#8b5cf6; padding:14px; border-radius:10px; cursor:pointer; font-weight:600; font-size:13px; transition:all 0.2s;" onmouseover="this.style.background='rgba(139,92,246,0.2)'" onmouseout="this.style.background='rgba(139,92,246,0.1)'">
+        📷 Click Photo
+        <input type="file" id="photoCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelected(this)">
+      </label>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display:flex; gap:10px;">
+      <button id="photoSubmitBtn" onclick="submitScanPhoto()" style="display:none; flex:1; background:linear-gradient(135deg,#10b981,#059669); color:white; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; font-size:14px;">✅ Upload Photo</button>
+      <button onclick="closePhotoPopup()" style="flex:1; background:var(--bg-primary); color:var(--text-secondary); border:1px solid var(--glass-border); padding:12px; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px;">⏭ Skip &amp; Continue</button>
+    </div>
+
+  </div>
+</div>
+
+<style>
+@keyframes scanAnim {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(300px); }
+  100% { transform: translateY(0); }
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+.tab-btn:not(.active):hover {
+  background: var(--bg-card) !important;
+}
+@media (max-width: 900px) {
+  .scanner-wrapper { grid-template-columns: 1fr; }
+}
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<script>
+function initScannerPage() {
+  let html5QrcodeScanner;
+  let currentTrackingNo = null;
+  
+  // UI Elements
+  const tabCamera = document.getElementById('tabCamera');
+  const tabUsb = document.getElementById('tabUsb');
+  const cameraContainer = document.getElementById('cameraContainer');
+  const usbContainer = document.getElementById('usbContainer');
+  const emptyState = document.getElementById('emptyState');
+  const loadingState = document.getElementById('loadingState');
+  const resultState = document.getElementById('resultState');
+  const manualForm = document.getElementById('manualForm');
+  const manualInput = document.getElementById('manualTrackingNo');
+  
+  // Tab Switching
+  if (tabCamera) {
+    tabCamera.addEventListener('click', () => {
+      tabCamera.className = 'tab-btn active';
+      tabCamera.style.background = 'rgba(79,142,247,0.15)';
+      tabCamera.style.color = '#4f8ef7';
+      tabCamera.style.borderColor = 'rgba(79,142,247,0.3)';
+      
+      tabUsb.className = 'tab-btn';
+      tabUsb.style.background = 'transparent';
+      tabUsb.style.color = 'var(--text-secondary)';
+      tabUsb.style.borderColor = 'transparent';
+      
+      cameraContainer.style.display = 'block';
+      usbContainer.style.display = 'none';
+      initCamera();
+    });
+  }
+  
+  if (tabUsb) {
+    tabUsb.addEventListener('click', () => {
+      tabUsb.className = 'tab-btn active';
+      tabUsb.style.background = 'rgba(79,142,247,0.15)';
+      tabUsb.style.color = '#4f8ef7';
+      tabUsb.style.borderColor = 'rgba(79,142,247,0.3)';
+      
+      tabCamera.className = 'tab-btn';
+      tabCamera.style.background = 'transparent';
+      tabCamera.style.color = 'var(--text-secondary)';
+      tabCamera.style.borderColor = 'transparent';
+      
+      cameraContainer.style.display = 'none';
+      usbContainer.style.display = 'flex';
+      stopScanner();
+      if (manualInput) manualInput.focus();
+    });
+  }
+  
+  // Resilient Camera Initialization
+  function initCamera() {
+    if (!html5QrcodeScanner) {
+      html5QrcodeScanner = new Html5Qrcode("qr-reader");
+    }
+    
+    // Ensure element is clean
+    const readerEl = document.getElementById('qr-reader');
+    if (!readerEl) return;
+    
+    if (typeof Html5Qrcode !== 'undefined' && Html5Qrcode.getCameras) {
+      Html5Qrcode.getCameras().then(cameras => {
+        if (cameras && cameras.length > 0) {
+          // Prefer back/rear camera if available, else first camera
+          let backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('environment') || c.label.toLowerCase().includes('rear'));
+          let cameraId = backCamera ? backCamera.id : cameras[0].id;
+          startScannerWithId(cameraId);
+        } else {
+          startScannerWithConfig({ facingMode: "environment" });
+        }
+      }).catch(err => {
+        console.warn("getCameras error, falling back to facingMode:", err);
+        startScannerWithConfig({ facingMode: "environment" });
+      });
+    } else {
+      startScannerWithConfig({ facingMode: "environment" });
+    }
+  }
+
+  function startScannerWithId(cameraId) {
+    if (!html5QrcodeScanner) return;
+    html5QrcodeScanner.start(
+      cameraId,
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => { handleScan(decodedText); },
+      () => {}
+    ).catch(err => {
+      console.warn("Failed with cameraId, retrying with user facingMode:", err);
+      startScannerWithConfig({ facingMode: "user" });
+    });
+  }
+
+  function startScannerWithConfig(config) {
+    if (!html5QrcodeScanner) return;
+    html5QrcodeScanner.start(
+      config,
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => { handleScan(decodedText); },
+      () => {}
+    ).catch(err => {
+      console.error("Camera access failed:", err);
+      showCameraErrorMsg(err);
+    });
+  }
+
+  function showCameraErrorMsg(err) {
+    const readerEl = document.getElementById('qr-reader');
+    if (readerEl) {
+      readerEl.innerHTML = `
+        <div style="padding: 24px 16px; text-align: center; color: #ef4444; background: rgba(0,0,0,0.85); height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;">
+          <div style="font-size: 36px; margin-bottom: 8px;">🎥⚠️</div>
+          <h4 style="margin: 0 0 6px 0; color: #fca5a5; font-size: 15px; font-weight: 700;">Camera Access Blocked / Unavailable</h4>
+          <p style="margin: 0 0 14px 0; color: #94a3b8; font-size: 11px; max-width: 280px; line-height: 1.5;">
+            Chrome blocks camera on HTTP IP addresses (10.10.1.6:5005).<br>
+            Please use <strong>Manual Entry</strong> below, connect a <strong>USB Scanner</strong>, or allow Camera permission in Chrome URL bar (🔒 icon).
+          </p>
+          <button onclick="window.retryScanner()" style="background: #4f8ef7; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">🔄 Retry Camera Access</button>
+        </div>
+      `;
+    }
+  }
+
+  window.retryScanner = function() {
+    initCamera();
+  };
+
+  function stopScanner() {
+    if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+      html5QrcodeScanner.stop().catch(err => console.warn("Stop error:", err));
+    }
+  }
+  
+  // Start Camera
+  initCamera();
+  
+  // Handle Manual Form
+  if (manualForm) {
+    manualForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if(manualInput && manualInput.value.trim()) {
+        handleScan(manualInput.value.trim());
+      }
+    });
+  }
+  
+  // USB Scanner listener
+  let buffer = '';
+  let lastTime = 0;
+  window.addEventListener('keypress', (e) => {
+    if(tabUsb && tabUsb.classList.contains('active') && document.activeElement !== manualInput && document.activeElement.tagName !== 'TEXTAREA') {
+      const time = Date.now();
+      if(time - lastTime > 100) { buffer = ''; }
+      if(e.key === 'Enter') {
+        if(buffer.length > 5) handleScan(buffer);
+        buffer = '';
+      } else {
+        buffer += e.key;
+      }
+      lastTime = time;
+    }
+  });
+  
+  // Process Scan
+  function extractTrackingNumber(text) {
+    try {
+      if (text.startsWith('http://') || text.startsWith('https://')) {
+        const url = new URL(text);
+        const parts = url.pathname.split('/').filter(Boolean);
+        return parts[parts.length - 1].toUpperCase();
+      }
+    } catch(e) {}
+    return text.toUpperCase().trim();
+  }
+
+  function handleScan(text) {
+    const trackingNo = extractTrackingNumber(text);
+    if(currentTrackingNo === trackingNo) return;
+    
+    currentTrackingNo = trackingNo;
+    if(navigator.vibrate) navigator.vibrate(200);
+    
+    if (emptyState) emptyState.style.display = 'none';
+    if (resultState) resultState.style.display = 'none';
+    if (loadingState) loadingState.style.display = 'flex';
+    
+    fetchParcelDetails(currentTrackingNo);
+  }
+  
+  function fetchParcelDetails(trackingNo) {
+    fetch(`/scan/lookup/${encodeURIComponent(trackingNo)}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Parcel not found");
+        return res.json();
+      })
+      .then(data => {
+        if (data.success) {
+          if (loadingState) loadingState.style.display = 'none';
+          if (resultState) resultState.style.display = 'flex';
+          
+          document.getElementById('resTrackingNo').textContent = data.parcel.tracking_number;
+          document.getElementById('resSender').textContent = data.parcel.sender_name + (data.parcel.sender_phone ? ' · ' + data.parcel.sender_phone : '');
+          document.getElementById('resSource').textContent = '📍 ' + (data.parcel.current_branch || 'Unknown Branch');
+          document.getElementById('resReceiver').textContent = data.parcel.receiver_name + (data.parcel.receiver_phone ? ' · ' + data.parcel.receiver_phone : '');
+          document.getElementById('resDest').textContent = '🏢 ' + (data.parcel.receiver_branch || data.parcel.current_branch || 'Unknown');
+          
+          const descEl = document.getElementById('resDescription');
+          if(descEl) descEl.textContent = data.parcel.description || '—';
+
+          const badge = document.getElementById('resStatusBadge');
+          if (badge) {
+            badge.textContent = data.parcel.status_label;
+            badge.className = `badge badge-${data.parcel.status.toLowerCase().replace(/ /g, '_')}`;
+          }
+        } else {
+          throw new Error(data.message || 'Not found');
+        }
+      })
+      .catch(err => {
+        console.error('Scanner lookup error:', err);
+        if (loadingState) loadingState.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'flex';
+        currentTrackingNo = null;
+        const errMsg = document.getElementById('scanErrorMsg');
+        if(errMsg) {
+          errMsg.textContent = '⚠️ Parcel not found: ' + trackingNo;
+          errMsg.style.display = 'block';
+          setTimeout(() => errMsg.style.display = 'none', 4000);
+        } else {
+          alert('Parcel not found: ' + trackingNo);
+        }
+      });
+  }
+  
+  // Handle Action Buttons
+  let lastCompletedTrackingNo = null;
+  let lastCompletedAction = null;
+
+  document.querySelectorAll('.action-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const action = this.getAttribute('data-action');
+      const notes = document.getElementById('actionNotes').value;
+      
+      if(!currentTrackingNo) return;
+      
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<div class="spinner" style="width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;"></div>`;
+      
+      const trackingForPhoto = currentTrackingNo;
+      
+      fetch('/scan/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tracking_number: currentTrackingNo,
+          action: action,
+          notes: notes
+        })
+      })
+      .then(res => res.json())
+      .then(res => {
+        btn.innerHTML = originalText;
+        if(res.success) {
+          currentTrackingNo = null;
+          document.getElementById('actionNotes').value = '';
+          if (resultState) resultState.style.display = 'none';
+          if (emptyState) emptyState.style.display = 'flex';
+
+          if(action === 'delivered' || action === 'received') {
+            lastCompletedTrackingNo = trackingForPhoto;
+            lastCompletedAction = action;
+            openPhotoPopup(trackingForPhoto, action, res.message);
+          } else {
+            const flash = document.createElement('div');
+            flash.textContent = '✅ ' + res.message;
+            flash.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(16,185,129,0.95);color:white;padding:12px 24px;border-radius:8px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 3000);
+          }
+        } else {
+          alert("Error processing scan: " + res.message);
+        }
+      })
+      .catch(err => {
+        btn.innerHTML = originalText;
+        console.error(err);
+        alert("An error occurred while updating status.");
+      });
+    });
+  });
+
+  // OPTIONAL PHOTO POPUP LOGIC
+  function openPhotoPopup(trackingNo, action, message) {
+    const overlay = document.getElementById('photoPopupOverlay');
+    const info = document.getElementById('photoPopupScanInfo');
+    if (info) info.textContent = '✅ ' + (message || `Parcel ${trackingNo} marked as ${action}`);
+    
+    clearPhotoSelection();
+    const subBtn = document.getElementById('photoSubmitBtn');
+    if (subBtn) subBtn.style.display = 'none';
+    
+    if (overlay) {
+      overlay.style.display = 'flex';
+      requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+        const m = overlay.querySelector('.modal');
+        if (m) m.style.transform = 'translateY(0)';
+      });
+    }
+  }
+
+  window.closePhotoPopup = function() {
+    const overlay = document.getElementById('photoPopupOverlay');
+    if (overlay) {
+      overlay.style.opacity = '0';
+      const m = overlay.querySelector('.modal');
+      if (m) m.style.transform = 'translateY(20px)';
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        clearPhotoSelection();
+        lastCompletedTrackingNo = null;
+        lastCompletedAction = null;
+      }, 300);
+    }
+  };
+
+  window.handlePhotoSelected = function(input) {
+    if (input.id === 'photoFileInput') {
+      const cInput = document.getElementById('photoCameraInput');
+      if (cInput) cInput.value = '';
+    } else {
+      const fInput = document.getElementById('photoFileInput');
+      if (fInput) fInput.value = '';
+    }
+    
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const preview = document.getElementById('photoPreviewArea');
+      const img = document.getElementById('photoPreviewImg');
+      const subBtn = document.getElementById('photoSubmitBtn');
+      if (img) img.src = e.target.result;
+      if (preview) preview.style.display = 'block';
+      if (subBtn) subBtn.style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.clearPhotoSelection = function() {
+    const fInput = document.getElementById('photoFileInput');
+    const cInput = document.getElementById('photoCameraInput');
+    const preview = document.getElementById('photoPreviewArea');
+    const img = document.getElementById('photoPreviewImg');
+    const subBtn = document.getElementById('photoSubmitBtn');
+    
+    if (fInput) fInput.value = '';
+    if (cInput) cInput.value = '';
+    if (preview) preview.style.display = 'none';
+    if (img) img.src = '';
+    if (subBtn) subBtn.style.display = 'none';
+  };
+
+  window.submitScanPhoto = function() {
+    const fileInput = document.getElementById('photoFileInput');
+    const cameraInput = document.getElementById('photoCameraInput');
+    const file = (fileInput ? fileInput.files[0] : null) || (cameraInput ? cameraInput.files[0] : null);
+    if(!file || !lastCompletedTrackingNo) return;
+
+    const btn = document.getElementById('photoSubmitBtn');
+    if (btn) {
+      btn.textContent = 'Uploading...';
+      btn.disabled = true;
+    }
+
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('tracking_number', lastCompletedTrackingNo);
+
+    fetch('/scan/upload-photo', {
+      method: 'POST',
+      body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+      closePhotoPopup();
+      const flash = document.createElement('div');
+      flash.textContent = res.success ? '📸 Photo saved successfully!' : '⚠️ Upload failed: ' + res.message;
+      flash.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:${res.success ? 'rgba(16,185,129,0.95)' : 'rgba(239,68,68,0.9)'};color:white;padding:12px 24px;border-radius:8px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);`;
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 3500);
+    })
+    .catch(() => {
+      if (btn) {
+        btn.textContent = '✅ Upload Photo';
+        btn.disabled = false;
+      }
+      alert('Upload failed. Please try again or skip.');
+    });
+  };
+
+  const overlayEl = document.getElementById('photoPopupOverlay');
+  if (overlayEl) {
+    overlayEl.addEventListener('click', function(e) {
+      if(e.target === this) closePhotoPopup();
+    });
+  }
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const trackParam = urlParams.get('track');
+  if(trackParam) {
+    handleScan(trackParam);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initScannerPage);
+} else {
+  initScannerPage();
+}
+</script>
+{% endblock %}

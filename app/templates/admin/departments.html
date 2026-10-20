@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Department Management{% endblock %}
+{% block page_title %}🏢 Department Management{% endblock %}
+{% block breadcrumb %}Administration / Departments{% endblock %}
+
+{% block content %}
+<div class="admin-container animate-fade-in" style="font-family: 'Inter', sans-serif;">
+  
+  <!-- Flash Alerts -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div style="margin-bottom: 20px; width: 100%;">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}" style="padding: 12px 16px; border-radius: 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; {% if category == 'success' %}background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2);{% else %}background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2);{% endif %}">
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; font-size: 18px; cursor: pointer;">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Add New Department -->
+  <div class="glass-card" style="max-width: 540px; padding: 24px; border-radius: 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); margin-bottom: 28px;">
+    <h3 style="color: #22d3ee; margin: 0 0 20px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 20px;">➕</span> Add New Department
+    </h3>
+    <form method="POST" action="{{ url_for('admin.add_department') }}" style="display: flex; flex-direction: column; gap: 16px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div>
+        <label style="display: block; color: var(--text-secondary); font-size: 13px; font-weight: 500; margin-bottom: 8px;">Department Name *</label>
+        <input type="text" name="name" required class="form-control" placeholder="e.g. Risk Management" style="width: 100%; padding: 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14.5px; box-sizing: border-box;">
+      </div>
+      <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #0284c7, #06b6d4); border: none; color: white; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+        Add Department
+      </button>
+    </form>
+  </div>
+
+  <!-- Bottom Card: All Departments List -->
+  <div class="glass-card" style="padding: 24px; border-radius: 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px);">
+    <h3 style="color: #22d3ee; margin: 0 0 20px 0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 20px;">🏢</span> All Departments
+    </h3>
+    <div class="table-responsive">
+      <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--glass-border); background: rgba(0,0,0,0.15);">
+            <th style="padding: 14px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; width: 60px;">#</th>
+            <th style="padding: 14px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Department Name</th>
+            <th style="padding: 14px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; width: 150px; text-align: center;">Staff Count</th>
+            <th style="padding: 14px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; width: 180px;">Created</th>
+            <th style="padding: 14px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; width: 180px; text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in depts %}
+          <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s;">
+            <td style="padding: 14px; color: var(--text-secondary); font-size: 14px;">{{ loop.index }}</td>
+            <td style="padding: 14px; color: var(--text-primary); font-size: 14.5px; font-weight: 600;">{{ d.name }}</td>
+            <td style="padding: 14px; text-align: center;">
+              {% if d.temp_staff_count > 0 %}
+              <span style="background: rgba(16,185,129,0.15); color: #10b981; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;">
+                {{ d.temp_staff_count }} staff
+              </span>
+              {% else %}
+              <span style="background: rgba(100,116,139,0.15); color: #64748b; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;">
+                0 staff
+              </span>
+              {% endif %}
+            </td>
+            <td style="padding: 14px; color: var(--text-secondary); font-size: 13.5px;">
+              {{ d.created_at.strftime('%Y-%m-%d') if d.created_at else '2026-07-08' }}
+            </td>
+            <td style="padding: 14px; text-align: right;">
+              <div style="display: inline-flex; gap: 8px; justify-content: flex-end; align-items: center;">
+                {% if d.temp_staff_count > 0 %}
+                <a href="{{ url_for('admin.accounts', department_id=d.id) }}" class="btn btn-sm" style="background: rgba(34,211,238,0.1); color: #22d3ee; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(34,211,238,0.25);" title="View Department Members">
+                  👁️ View
+                </a>
+                <button disabled style="background: rgba(239,68,68,0.05); color: rgba(239,68,68,0.4); border: 1px solid rgba(239,68,68,0.1); padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: not-allowed; display: inline-flex; align-items: center; gap: 4px;" title="Cannot delete department with active staff">
+                  🗑️ Delete
+                </button>
+                {% else %}
+                <form method="POST" action="{{ url_for('admin.delete_department', dept_id=d.id) }}" onsubmit="return confirm('Are you sure you want to delete this department?')" style="margin: 0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm" style="background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Delete empty department">
+                    🗑️ Delete
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-muted);">No departments configured.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

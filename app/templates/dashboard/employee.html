@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard{% endblock %}
+{% block page_title %}My Workspace{% endblock %}
+{% block breadcrumb %}Dashboard / {{ current_user.branch_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+  
+  <div class="welcome-banner">
+    <div class="welcome-text">
+      <div class="welcome-title-row">
+        <h2>Welcome, {{ current_user.name }}! 👋</h2>
+      </div>
+      <div class="welcome-meta-row">
+        <span class="meta-pill role-pill">{{ current_user.role|title }}</span>
+        {% if current_user.department_id %}
+        <span class="meta-pill">🏛️ {{ current_user.department_name or 'Department' }}</span>
+        {% else %}
+        <span class="meta-pill">🏢 {{ current_user.branch_name or 'General Branch' }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="welcome-action">
+      <a href="{{ url_for('scan.scanner') }}" class="btn-scan-action">
+        <span>📷</span> SCAN QR CODE
+      </a>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <!-- Scans Today -->
+    <a href="{{ url_for('dispatch.dispatch_list', filter='my_scans_today') }}" class="stat-card-link">
+      <div class="stat-card stat-blue">
+        <div class="stat-header">
+          <span class="stat-label">My Scans Today</span>
+          <span class="stat-icon-badge">📷</span>
+        </div>
+        <div class="stat-value">{{ stats.scans_today }}</div>
+        <div class="stat-footer">
+          <span>View scans list</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+    
+    <!-- Deliveries Today -->
+    <a href="{{ url_for('dispatch.dispatch_list', filter='my_deliveries_today') }}" class="stat-card-link">
+      <div class="stat-card stat-green">
+        <div class="stat-header">
+          <span class="stat-label">My Deliveries Today</span>
+          <span class="stat-icon-badge">✅</span>
+        </div>
+        <div class="stat-value">{{ stats.deliveries_today }}</div>
+        <div class="stat-footer">
+          <span>View deliveries</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+    
+    <!-- Pending at Branch / My Pending Parcels -->
+    <a href="{{ url_for('dispatch.dispatch_list') }}?status=pending" class="stat-card-link">
+      <div class="stat-card stat-orange">
+        <div class="stat-header">
+          <span class="stat-label">{% if current_user.affiliation_type == 'Department' %}My Pending Parcels{% else %}Pending at Branch{% endif %}</span>
+          <span class="stat-icon-badge">⏳</span>
+        </div>
+        <div class="stat-value">{{ stats.pending_branch }}</div>
+        <div class="stat-footer">
+          <span>View pending</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Overdue -->
+    <a href="{{ url_for('dispatch.overdue_list') }}" class="stat-card-link">
+      <div class="stat-card stat-red">
+        <div class="stat-header">
+          <span class="stat-label" style="color: var(--accent-red);">Overdue</span>
+          <span class="stat-icon-badge">⏰</span>
+        </div>
+        <div class="stat-value" style="color:{% if stats.overdue > 0 %}#ef4444{% else %}var(--text-primary){% endif %};">{{ stats.overdue }}</div>
+        <div class="stat-footer">
+          <span>View overdue</span>
+          <span class="stat-arrow">→</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="bottom-row">
+    
+    <!-- My Recent Scans -->
+    <div class="glass-card table-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">My Recent Scans</h3>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Tracking No.</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for scan in recent_scans %}
+            <tr>
+              <td style="color: var(--text-secondary); font-size: 13px;">{{ scan.time }}</td>
+              <td style="font-weight: 600;"><a href="{{ url_for('dispatch.dispatch_detail', tracking_number=scan.tracking_no) }}" style="color: var(--accent-blue); text-decoration: none;">{{ scan.tracking_no }}</a></td>
+              <td>
+                <span class="badge badge-in_transit">{{ scan.action }}</span>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">No scans today</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Pending at My Branch / Files Needing Action -->
+    <div class="glass-card table-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">Files Needing Action</h3>
+        <a href="{{ url_for('dispatch.dispatch_list') }}" class="panel-link">View All →</a>
+      </div>
+      <div class="pending-list">
+        {% for p in pending_files %}
+        <div class="pending-item">
+          <div>
+            <div class="pending-tracking">{{ p.tracking_no }}</div>
+            <div class="pending-receiver">To: {{ p.receiver_name }}</div>
+          </div>
+          <a href="{{ url_for('scan.scanner', track=p.tracking_no) }}" class="btn-action-sm">Action</a>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">You're all caught up! 🎉</div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

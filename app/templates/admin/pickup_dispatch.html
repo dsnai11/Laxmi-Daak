@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% block title %}Pick Up & Dispatch — {{ parcel.tracking_number }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🚚 Pick Up & Dispatch Query</h1>
+    <p class="page-subtitle">Fill in courier details to mark this query as picked up and dispatched.</p>
+  </div>
+  <a href="{{ url_for('admin.dispatch_queries') }}" class="btn btn-outline">← Back to Queries</a>
+</div>
+
+<!-- Workflow Banner -->
+<div style="display:flex;gap:0;margin-bottom:2rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);">
+  <div style="flex:1;padding:12px 16px;background:var(--card-bg);text-align:center;border-right:1px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;opacity:.5;letter-spacing:1px;text-transform:uppercase;">Step 1 ✓</div>
+    <div style="font-size:13px;font-weight:600;opacity:.5;margin-top:2px;">📬 Query Raised</div>
+  </div>
+  <div style="flex:1;padding:12px 16px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;text-align:center;">
+    <div style="font-size:11px;font-weight:600;opacity:.85;letter-spacing:1px;text-transform:uppercase;">Step 2 — You Are Here</div>
+    <div style="font-size:13px;font-weight:700;margin-top:2px;">🚚 Admin Picks Up</div>
+  </div>
+  <div style="flex:1;padding:12px 16px;background:var(--card-bg);text-align:center;border-left:1px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;opacity:.5;letter-spacing:1px;text-transform:uppercase;">Step 3</div>
+    <div style="font-size:13px;font-weight:600;opacity:.5;margin-top:2px;">📦 Receiver Confirms</div>
+  </div>
+  <div style="flex:1;padding:12px 16px;background:var(--card-bg);text-align:center;border-left:1px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;opacity:.5;letter-spacing:1px;text-transform:uppercase;">Step 4</div>
+    <div style="font-size:13px;font-weight:600;opacity:.5;margin-top:2px;">✅ Sender Confirms</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1.5fr;gap:1.5rem;">
+
+  <!-- Query Summary -->
+  <div>
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">📋 Query Summary</h3></div>
+      <div class="card-body">
+        <div style="display:grid;gap:.75rem;">
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Tracking ID</div>
+            <div style="font-family:monospace;font-weight:700;font-size:15px;color:var(--accent);">{{ parcel.tracking_number }}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Sender</div>
+            <div style="font-weight:600;">{{ parcel.sender_name }}</div>
+            {% if parcel.sender_department_name %}<div style="font-size:12px;"><span style="background:rgba(99,102,241,.1);color:var(--accent);padding:1px 6px;border-radius:4px;">{{ parcel.sender_department_name }}</span></div>{% endif %}
+            {% if parcel.sender_phone %}<div style="font-size:12px;color:var(--text-secondary);">{{ parcel.sender_phone }}</div>{% endif %}
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Receiver</div>
+            <div style="font-weight:600;">{{ parcel.receiver_name }}</div>
+            {% if parcel.receiver_department_name %}<div style="font-size:12px;"><span style="background:rgba(16,185,129,.1);color:#10b981;padding:1px 6px;border-radius:4px;">{{ parcel.receiver_department_name }}</span></div>{% endif %}
+            {% if parcel.receiver_branch %}
+            <div style="font-size:12px;color:var(--text-secondary);">{{ parcel.receiver_branch.name }}</div>
+            {% else %}
+            <div style="font-size:12px;color:var(--text-secondary);">{{ parcel.receiver_branch_name or 'Other Location' }}</div>
+            {% endif %}
+            {% if parcel.receiver_phone %}<div style="font-size:12px;color:var(--text-secondary);">{{ parcel.receiver_phone }}</div>{% endif %}
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Description</div>
+            <div style="font-size:13px;">{{ parcel.description or '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Priority</div>
+            {% if parcel.priority == 'urgent' %}
+            <span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">🔴 Urgent</span>
+            {% elif parcel.priority == 'express' %}
+            <span style="background:#fff7ed;color:#9a3412;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">🟠 Express</span>
+            {% else %}
+            <span style="background:var(--card-bg);color:var(--text-secondary);padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;">Normal</span>
+            {% endif %}
+          </div>
+          {% if parcel.special_instructions %}
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Special Instructions</div>
+            <div style="font-size:13px;font-style:italic;color:var(--text-secondary);">{{ parcel.special_instructions }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dispatch Form -->
+  <div>
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">🚚 Courier / Dispatch Details</h3></div>
+      <div class="card-body">
+        <form method="POST" id="pickupDispatchForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <!-- Transfer Mode -->
+          <div class="form-group">
+            <label class="form-label">Transfer Mode *</label>
+            <div style="display:flex;gap:.75rem;margin-top:.35rem;">
+              {% for val, label, icon in [('by_courier','By Courier','📦'),('by_hand','By Hand','🤝'),('by_bus','By Bus','🚌')] %}
+              <label style="flex:1;cursor:pointer;">
+                <input type="radio" name="transfer_mode" id="mode_{{ val }}" value="{{ val }}" onchange="toggleFields(this.value); calculateBilling();"
+                       {% if loop.first %}checked{% endif %} style="display:none;" class="mode-radio">
+                <div class="mode-card" data-val="{{ val }}"
+                      style="text-align:center;padding:12px 8px;border-radius:10px;border:2px solid var(--border);cursor:pointer;transition:all .2s;font-size:12px;font-weight:600;">
+                  <div style="font-size:22px;margin-bottom:4px;">{{ icon }}</div>
+                  {{ label }}
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- By Courier Fields -->
+          <div id="courierFields">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+              <div class="form-group">
+                <label class="form-label">Courier Partner *</label>
+                <select name="courier_partner" id="courierPartnerSel" class="form-control" onchange="toggleOtherCourier(this.value); calculateBilling();">
+                  <option value="">— Select Courier Partner —</option>
+                  {% for cp in ['Blue Dart','Pushpak','Professional','Trackon','Other Company'] %}
+                  <option value="{{ cp }}">{{ cp }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">AWB / Docket No.</label>
+                <input type="text" name="courier_id" class="form-control" placeholder="Enter tracking/docket number">
+              </div>
+            </div>
+
+            <!-- Blue Dart Zone Selection (RJ vs Out of RJ) -->
+            <div class="form-group" id="blueDartZoneGroup" style="display:none; margin-top: 10px; background: rgba(59,130,246,0.06); padding: 12px; border-radius: 8px; border: 1px solid rgba(59,130,246,0.2);">
+              <label class="form-label" style="color: #2563eb; font-weight: 600;">📍 Select State / Location (Blue Dart Flat Rates)</label>
+              <select id="blueDartZoneSelect" class="form-control" style="background: white; border-color: #3b82f6;" onchange="calculateBilling()">
+                <option value="Rajasthan" {% if parcel.receiver_branch and 'rajasthan' in parcel.receiver_branch.state.lower() %}selected{% endif %}>Rajasthan (Within RJ = ₹350 flat rate)</option>
+                <option value="Outside Rajasthan" {% if not (parcel.receiver_branch and 'rajasthan' in parcel.receiver_branch.state.lower()) %}selected{% endif %}>Outside Rajasthan (Out of RJ = ₹550 flat rate)</option>
+              </select>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Blue Dart charges flat ₹350 for Rajasthan (RJ) and ₹550 for Out of Rajasthan.</div>
+            </div>
+
+            <div class="form-group" id="otherCourierDiv" style="display:none; margin-top: 10px;">
+              <label class="form-label">Other Courier Name</label>
+              <input type="text" name="other_courier_name" class="form-control" placeholder="Enter courier company name">
+            </div>
+          </div>
+
+          <!-- By Hand Fields -->
+          <div id="handFields" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+              <div class="form-group">
+                <label class="form-label">Carried By (Name)</label>
+                <input type="text" name="hand_carry_name" class="form-control" placeholder="Person carrying the parcel">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Carrier Phone</label>
+                <input type="text" name="hand_carry_phone" class="form-control" placeholder="Carrier's contact number">
+              </div>
+            </div>
+          </div>
+
+          <!-- By Bus Fields -->
+          <div id="busFields" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+              <div class="form-group">
+                <label class="form-label">Bus / Vehicle No.</label>
+                <input type="text" name="bus_number" class="form-control" placeholder="e.g. RJ14 PA 0001">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Driver Phone</label>
+                <input type="text" name="driver_phone" class="form-control" placeholder="Driver's contact number">
+              </div>
+            </div>
+          </div>
+
+          <!-- Weight & Unit Selector -->
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-top:1rem;">
+            <div class="form-group">
+              <label class="form-label">Weight *</label>
+              <input type="number" name="weight" id="weightInput" class="form-control" step="0.01" min="0" placeholder="Enter weight (e.g. 500)" oninput="calculateBilling()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Unit *</label>
+              <select name="weight_unit" id="weightUnitSelect" class="form-control" onchange="calculateBilling()">
+                <option value="gms" selected>GMS (Grams)</option>
+                <option value="kg">KG (Kilograms)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Billing & Charges Section (identical to New Dispatch) -->
+          <div class="glass-card" style="padding: 16px; border-radius: 10px; margin-top: 16px; margin-bottom: 16px; border: 1px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.03);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <span style="font-weight: 700; font-size: 14px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">💵 Billing & Charges</span>
+              <div style="display: flex; gap: 6px;">
+                <span id="busEditBadge" style="display: none; background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                  ✏️ Custom Bus Rate Editable
+                </span>
+                <span id="handEditBadge" style="display: none; background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                  ✏️ Custom Hand Rate Editable
+                </span>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 4px;">Estimated Bill Amount</div>
+                <div id="standardBillingDisplay" style="display: flex; align-items: center;">
+                  <div style="font-size: 26px; font-weight: 800; color: #10b981;" id="billingAmountDisplay">₹0.00</div>
+                </div>
+                <div id="busEditableDisplay" style="display: none; align-items: center; gap: 6px;">
+                  <span style="font-size: 22px; font-weight: 800; color: #10b981;">₹</span>
+                  <input type="number" step="0.01" min="0" id="busRateOverrideInput" class="form-control" placeholder="0.00"
+                         style="width: 130px; font-size: 20px; font-weight: 800; color: #10b981; padding: 4px 10px; background: var(--bg-primary); border: 2px solid #10b981; border-radius: 6px;"
+                         oninput="onBusRateOverrideChange()">
+                </div>
+                <div id="handEditableDisplay" style="display: none; align-items: center; gap: 6px;">
+                  <span style="font-size: 22px; font-weight: 800; color: #10b981;">₹</span>
+                  <input type="number" step="0.01" min="0" id="handRateOverrideInput" class="form-control" placeholder="0.00"
+                         style="width: 130px; font-size: 20px; font-weight: 800; color: #10b981; padding: 4px 10px; background: var(--bg-primary); border: 2px solid #10b981; border-radius: 6px;"
+                         oninput="onHandRateOverrideChange()">
+                </div>
+                <input type="hidden" name="billing_amount" id="billingAmountInput" value="0.00">
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); max-width: 320px;" id="billingFormulaDisplay">
+                Charges calculated based on transfer mode and weight.
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Admin Notes (Optional)</label>
+            <textarea name="special_instructions" class="form-control" rows="2"
+                      placeholder="Any additional notes from Admin team...">{{ parcel.special_instructions or '' }}</textarea>
+          </div>
+
+          <div style="display:flex;gap:1rem;margin-top:1.25rem;">
+            <a href="{{ url_for('admin.dispatch_queries') }}" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn btn-primary" style="flex:1;padding:12px;font-size:14px;font-weight:700;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;">
+              🚚 Confirm Pick Up & Dispatch
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end grid -->
+
+<script>
+let billingRates = {};
+let isBusUserOverridden = false;
+let isHandUserOverridden = false;
+
+function toggleFields(mode) {
+  document.getElementById('courierFields').style.display = mode === 'by_courier' ? '' : 'none';
+  document.getElementById('handFields').style.display    = mode === 'by_hand'    ? '' : 'none';
+  document.getElementById('busFields').style.display     = mode === 'by_bus'     ? '' : 'none';
+  
+  // Highlight mode cards
+  document.querySelectorAll('.mode-card').forEach(c => {
+    const isCurrent = c.dataset.val === mode;
+    c.style.borderColor = isCurrent ? '#f59e0b' : 'var(--border)';
+    c.style.background  = isCurrent ? 'rgba(245,158,11,.08)' : '';
+    c.style.color       = isCurrent ? '#f59e0b' : '';
+  });
+}
+
+function toggleOtherCourier(val) {
+  const otherDiv = document.getElementById('otherCourierDiv');
+  const blueDartZoneGroup = document.getElementById('blueDartZoneGroup');
+  if (otherDiv) otherDiv.style.display = val === 'Other Company' ? 'block' : 'none';
+  if (blueDartZoneGroup) blueDartZoneGroup.style.display = val === 'Blue Dart' ? 'block' : 'none';
+}
+
+function onBusRateOverrideChange() {
+  isBusUserOverridden = true;
+  const busInput = document.getElementById('busRateOverrideInput');
+  const val = parseFloat(busInput ? busInput.value : 0) || 0;
+  
+  const displayEl = document.getElementById('billingAmountDisplay');
+  const inputEl = document.getElementById('billingAmountInput');
+  const formulaEl = document.getElementById('billingFormulaDisplay');
+  
+  if (displayEl) displayEl.textContent = `₹${val.toFixed(2)}`;
+  if (inputEl) inputEl.value = val.toFixed(2);
+  if (formulaEl) {
+    formulaEl.innerHTML = `<strong>By Bus (Custom Editable Rate):</strong> Manually specified rate = <strong>₹${val.toFixed(2)}</strong>`;
+  }
+}
+
+function onHandRateOverrideChange() {
+  isHandUserOverridden = true;
+  const handInput = document.getElementById('handRateOverrideInput');
+  const val = parseFloat(handInput ? handInput.value : 0) || 0;
+  
+  const displayEl = document.getElementById('billingAmountDisplay');
+  const inputEl = document.getElementById('billingAmountInput');
+  const formulaEl = document.getElementById('billingFormulaDisplay');
+  
+  if (displayEl) displayEl.textContent = `₹${val.toFixed(2)}`;
+  if (inputEl) inputEl.value = val.toFixed(2);
+  if (formulaEl) {
+    formulaEl.innerHTML = `<strong>By Hand (Custom Editable Rate):</strong> Manually specified rate = <strong>₹${val.toFixed(2)}</strong>`;
+  }
+}
+
+function fetchBillingRates(state = '') {
+  fetch(`/api/billing/rates?state=${encodeURIComponent(state)}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.rates) {
+        billingRates = data.rates;
+        calculateBilling();
+      }
+    })
+    .catch(err => {
+      console.error("Error fetching billing rates:", err);
+      calculateBilling();
+    });
+}
+
+function calculateBilling() {
+  const modeRadio = document.querySelector('.mode-radio:checked');
+  const mode = modeRadio ? modeRadio.value : 'by_courier';
+  
+  const weightInput = document.getElementById('weightInput');
+  const weightUnitSelect = document.getElementById('weightUnitSelect');
+  const courierSelect = document.getElementById('courierPartnerSel');
+  const blueDartZoneSelect = document.getElementById('blueDartZoneSelect');
+  
+  const displayEl = document.getElementById('billingAmountDisplay');
+  const inputEl = document.getElementById('billingAmountInput');
+  const formulaEl = document.getElementById('billingFormulaDisplay');
+  
+  const standardDisplay = document.getElementById('standardBillingDisplay');
+  const busEditableDisplay = document.getElementById('busEditableDisplay');
+  const busEditBadge = document.getElementById('busEditBadge');
+  const busInput = document.getElementById('busRateOverrideInput');
+
+  const handEditableDisplay = document.getElementById('handEditableDisplay');
+  const handEditBadge = document.getElementById('handEditBadge');
+  const handInput = document.getElementById('handRateOverrideInput');
+
+  if (mode === 'by_bus') {
+    if (standardDisplay) standardDisplay.style.display = 'none';
+    if (busEditableDisplay) busEditableDisplay.style.display = 'flex';
+    if (busEditBadge) busEditBadge.style.display = 'inline-block';
+    if (handEditableDisplay) handEditableDisplay.style.display = 'none';
+    if (handEditBadge) handEditBadge.style.display = 'none';
+    isHandUserOverridden = false;
+    
+    if (isBusUserOverridden && busInput && busInput.value !== '') {
+      onBusRateOverrideChange();
+      return;
+    }
+  } else if (mode === 'by_hand') {
+    if (standardDisplay) standardDisplay.style.display = 'none';
+    if (busEditableDisplay) busEditableDisplay.style.display = 'none';
+    if (busEditBadge) busEditBadge.style.display = 'none';
+    if (handEditableDisplay) handEditableDisplay.style.display = 'flex';
+    if (handEditBadge) handEditBadge.style.display = 'inline-block';
+    isBusUserOverridden = false;
+    
+    if (isHandUserOverridden && handInput && handInput.value !== '') {
+      onHandRateOverrideChange();
+      return;
+    }
+  } else {
+    if (standardDisplay) standardDisplay.style.display = 'flex';
+    if (busEditableDisplay) busEditableDisplay.style.display = 'none';
+    if (busEditBadge) busEditBadge.style.display = 'none';
+    if (handEditableDisplay) handEditableDisplay.style.display = 'none';
+    if (handEditBadge) handEditBadge.style.display = 'none';
+    isBusUserOverridden = false;
+    isHandUserOverridden = false;
+  }
+
+  const rawWeight = parseFloat(weightInput ? weightInput.value : 0) || 0;
+  const unit = weightUnitSelect ? weightUnitSelect.value : 'gms';
+  let weightInKg = 0;
+  let weightInGrams = 0;
+  
+  if (unit === 'gms') {
+    weightInGrams = rawWeight;
+    weightInKg = rawWeight / 1000.0;
+  } else {
+    weightInKg = rawWeight;
+    weightInGrams = rawWeight * 1000.0;
+  }
+  
+  const priorityVal = "{{ parcel.priority or 'normal' }}".toLowerCase();
+  
+  let total = 0;
+  let formulaText = "";
+  
+  if (mode === 'by_courier') {
+    const courier = courierSelect ? courierSelect.value : "";
+    
+    if (!courier) {
+      formulaText = "Select a Courier Partner to calculate billing.";
+      if (displayEl) displayEl.textContent = '₹0.00';
+      if (inputEl) inputEl.value = '0.00';
+      if (formulaEl) formulaEl.innerHTML = `<strong>Formula:</strong> ${formulaText}`;
+      return;
+    }
+    
+    const rate = billingRates[courier];
+    
+    if (courier === 'Pushpak') {
+      const isPremium = (priorityVal === 'express' || priorityVal === 'urgent');
+      let baseRate = 35.0;
+      let extraRate = 25.0;
+      let serviceLabel = "NORMAL Service";
+      
+      if (rate) {
+        if (isPremium) {
+          baseRate = (rate.pushpak_premium_base !== undefined && rate.pushpak_premium_base !== null) ? parseFloat(rate.pushpak_premium_base) : 300.0;
+          extraRate = (rate.pushpak_premium_extra !== undefined && rate.pushpak_premium_extra !== null) ? parseFloat(rate.pushpak_premium_extra) : 200.0;
+          serviceLabel = "PREMIUM Service";
+        } else {
+          baseRate = (rate.pushpak_normal_base !== undefined && rate.pushpak_normal_base !== null) ? parseFloat(rate.pushpak_normal_base) : 35.0;
+          extraRate = (rate.pushpak_normal_extra !== undefined && rate.pushpak_normal_extra !== null) ? parseFloat(rate.pushpak_normal_extra) : 25.0;
+          serviceLabel = "NORMAL Service";
+        }
+      }
+      
+      if (rawWeight === 0) {
+        total = baseRate;
+        formulaText = `Pushpak (${serviceLabel}): Base ₹${baseRate.toFixed(2)} for upto 500g. Enter weight to calculate.`;
+      } else if (weightInGrams <= 500) {
+        total = baseRate;
+        formulaText = `Pushpak (${serviceLabel}): Base ₹${baseRate.toFixed(2)} (upto 500g). Weight: ${weightInGrams}g`;
+      } else {
+        const extraGrams = weightInGrams - 500;
+        const extraSlabs = Math.ceil(extraGrams / 500);
+        total = baseRate + (extraSlabs * extraRate);
+        formulaText = `Pushpak (${serviceLabel}): ₹${baseRate.toFixed(2)} (first 500g) + ${extraSlabs} × ₹${extraRate.toFixed(2)} (each extra 500g) = ₹${total.toFixed(2)}. Weight: ${weightInGrams}g (${weightInKg.toFixed(3)}kg)`;
+      }
+      
+    } else if (courier === 'Blue Dart') {
+      const bdZone = blueDartZoneSelect ? blueDartZoneSelect.value : 'Outside Rajasthan';
+      let flatRate = 550.0;
+      let zoneLabel = "Outside Rajasthan (Out of RJ)";
+      
+      if (bdZone === 'Rajasthan') {
+        flatRate = 350.0;
+        zoneLabel = "Rajasthan (Within RJ)";
+      } else {
+        flatRate = 550.0;
+        zoneLabel = "Outside Rajasthan (Out of RJ)";
+      }
+      
+      total = flatRate;
+      formulaText = `Blue Dart (${zoneLabel}): Flat Rate = ₹${flatRate.toFixed(2)} per parcel (fixed, no per-kg charge). Weight: ${rawWeight > 0 ? (unit === 'gms' ? weightInGrams + 'g' : weightInKg.toFixed(2) + 'kg') : 'not entered'}`;
+      
+    } else {
+      let baseRate = rate ? parseFloat(rate.base_rate || 0) : 0;
+      let perKgRate = rate ? parseFloat(rate.per_kg_rate || 0) : 0;
+      
+      if (baseRate === 0 && perKgRate === 0) {
+        total = 0;
+        formulaText = `Courier (${courier}): Rates not configured. Contact admin.`;
+      } else {
+        total = baseRate + (perKgRate * weightInKg);
+        formulaText = `Courier (${courier}): ₹${baseRate.toFixed(2)} base + (${weightInKg.toFixed(3)}kg × ₹${perKgRate.toFixed(2)}/kg) = ₹${total.toFixed(2)}`;
+      }
+    }
+    
+  } else if (mode === 'by_bus') {
+    const rate = billingRates['By Bus'];
+    let baseRate = rate ? parseFloat(rate.base_rate || 0) : 0;
+    let perKgRate = rate ? parseFloat(rate.per_kg_rate || 0) : 0;
+    total = baseRate + (perKgRate * weightInKg);
+    formulaText = `By Bus: ₹${total.toFixed(2)} (editable — type custom amount in the field above)`;
+    if (busInput && !isBusUserOverridden) busInput.value = total.toFixed(2);
+    
+  } else if (mode === 'by_hand') {
+    const rate = billingRates['By Hand'];
+    let baseRate = rate ? parseFloat(rate.base_rate || 0) : 0;
+    let perKgRate = rate ? parseFloat(rate.per_kg_rate || 0) : 0;
+    total = baseRate + (perKgRate * weightInKg);
+    formulaText = `By Hand: ₹${total.toFixed(2)} (editable — type custom amount in the field above)`;
+    if (handInput && !isHandUserOverridden) handInput.value = total.toFixed(2);
+  }
+  
+  if (displayEl) displayEl.textContent = `₹${total.toFixed(2)}`;
+  if (inputEl) inputEl.value = total.toFixed(2);
+  if (formulaEl) {
+    formulaEl.innerHTML = `<strong>Formula:</strong> ${formulaText}`;
+  }
+}
+
+// Init on load
+function initPickupDispatch() {
+  const destState = "{{ parcel.receiver_branch.state if parcel.receiver_branch else '' }}";
+  fetchBillingRates(destState);
+
+  const courierSel = document.getElementById('courierPartnerSel');
+  if (courierSel && courierSel.value) {
+    toggleOtherCourier(courierSel.value);
+  }
+
+  const checked = document.querySelector('.mode-radio:checked');
+  if (checked) toggleFields(checked.value);
+
+  document.querySelectorAll('.mode-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const radio = card.closest('label').querySelector('input[type=radio]');
+      if (radio) {
+        radio.checked = true;
+        toggleFields(radio.value);
+        calculateBilling();
+      }
+    });
+  });
+
+  setTimeout(calculateBilling, 100);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPickupDispatch);
+} else {
+  initPickupDispatch();
+}
+</script>
+{% endblock %}

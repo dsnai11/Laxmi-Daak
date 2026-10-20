@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Security Audit Logs{% endblock %}
+{% block page_title %}🛡️ Security Audit Logs{% endblock %}
+{% block breadcrumb %}Administration / Security Logs{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+
+  <!-- Header -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="margin:0; color:var(--text-primary); font-size:20px; display:flex; align-items:center; gap:10px;">
+        🛡️ Security Audit Logs
+        <span style="background:rgba(79,142,247,0.15); color:var(--accent-blue); font-size:12px; padding:4px 10px; border-radius:20px; font-weight:600;">
+          {{ logs.total }} total entries
+        </span>
+      </h2>
+      <p style="margin:6px 0 0; color:var(--text-muted); font-size:13px;">Real-time tracker of all critical authentication events, edits, deletions, and upload operations.</p>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="glass-card" style="padding:16px 20px; border-radius:12px; margin-bottom:20px;">
+    <form method="GET" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; width:100%;">
+      <!-- Search Input -->
+      <div style="flex:1; min-width:200px;">
+        <input type="text" name="search" value="{{ search }}" placeholder="Search by username, details, or IP…"
+          style="width:100%; background:var(--bg-primary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:8px; padding:10px 14px; font-size:13px; box-sizing:border-box;">
+      </div>
+      
+      <!-- Action Dropdown -->
+      <div style="min-width:180px;">
+        <select name="action" style="width:100%; background:var(--bg-primary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:8px; padding:10px 12px; font-size:13px; outline:none; cursor:pointer;">
+          <option value="" style="background:#1e293b; color:#f1f5f9;">All Actions</option>
+          {% for act in distinct_actions %}
+          <option value="{{ act }}" {% if selected_action == act %}selected{% endif %} style="background:#1e293b; color:#f1f5f9;">{{ act|replace('_', ' ')|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <!-- Buttons -->
+      <button type="submit" class="btn btn-primary" style="padding:10px 20px; font-size:13px;">🔍 Filter</button>
+      {% if search or selected_action %}
+      <a href="{{ url_for('admin.security_logs') }}" class="btn btn-ghost" style="padding:10px 16px; font-size:13px;">✕ Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="glass-card" style="border-radius:12px; overflow:hidden;">
+    <div class="table-responsive">
+      <table class="data-table" style="width:100%; text-align:left; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--glass-border);">
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600; width:18%;">TIMESTAMP</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600; width:15%;">USER</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600; width:15%;">ACTION</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600; width:15%;">IP ADDRESS</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600; width:37%;">LOG DETAILS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs.items %}
+          <tr style="border-bottom:1px solid var(--glass-border); transition:background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(255,255,255,0.02)'" onmouseout="this.style.backgroundColor='transparent'">
+            <!-- Timestamp -->
+            <td style="padding:14px 16px; font-size:12px; color:var(--text-secondary);">
+              <span data-utc="{{ log.timestamp.isoformat() }}Z" data-format="full">{{ log.timestamp.strftime('%d %b %Y, %I:%M %p') }}</span>
+            </td>
+            <!-- User -->
+            <td style="padding:14px 16px; font-size:13px; color:var(--text-primary);">
+              <div style="font-weight:600;">{{ log.user.name if log.user else log.username }}</div>
+              <div style="font-size:11px; color:var(--text-muted);">@{{ log.username }}</div>
+            </td>
+            <!-- Action -->
+            <td style="padding:14px 16px;">
+              {% if log.action in ['login_success', 'parcel_unarchived'] %}
+              <span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:11px; padding:3px 8px; border-radius:4px; font-weight:600;">{{ log.action|replace('_', ' ')|upper }}</span>
+              {% elif log.action in ['login_failed', 'parcel_deleted'] %}
+              <span class="badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:11px; padding:3px 8px; border-radius:4px; font-weight:600;">{{ log.action|replace('_', ' ')|upper }}</span>
+              {% elif log.action in ['dispatch_created', 'bulk_upload'] %}
+              <span class="badge" style="background:rgba(34,211,238,0.15); color:#22d3ee; border:1px solid rgba(34,211,238,0.3); font-size:11px; padding:3px 8px; border-radius:4px; font-weight:600;">{{ log.action|replace('_', ' ')|upper }}</span>
+              {% else %}
+              <span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:11px; padding:3px 8px; border-radius:4px; font-weight:600;">{{ log.action|replace('_', ' ')|upper }}</span>
+              {% endif %}
+            </td>
+            <!-- IP Address -->
+            <td style="padding:14px 16px; font-size:13px; font-family:monospace; color:var(--text-secondary);">
+              {{ log.ip_address }}
+            </td>
+            <!-- Log Details -->
+            <td style="padding:14px 16px; font-size:13px; color:var(--text-primary); line-height:1.4;">
+              <div>{{ log.details }}</div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:4px; font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px;" title="{{ log.user_agent }}">{{ log.user_agent }}</div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="text-align:center; padding:50px; color:var(--text-muted);">
+              <div style="font-size:36px; margin-bottom:12px;">🛡️</div>
+              <div style="font-size:15px; font-weight:500;">No security logs found</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if logs.total > 0 %}
+    <div style="padding:16px; border-top:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center;">
+      <div style="color:var(--text-muted); font-size:12px;">Showing {{ logs.items|length }} of {{ logs.total }} log entries</div>
+      <div style="display:flex; gap:8px;">
+        {% if logs.has_prev %}
+        <a href="{{ url_for('admin.security_logs', page=logs.prev_num, search=search, action=selected_action) }}" class="btn btn-sm" style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--glass-border); padding:6px 12px; border-radius:4px; text-decoration:none; font-size:13px;">Prev</a>
+        {% endif %}
+        <span style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--glass-border); padding:6px 12px; border-radius:4px; font-size:13px;">{{ logs.page }}/{{ logs.pages }}</span>
+        {% if logs.has_next %}
+        <a href="{{ url_for('admin.security_logs', page=logs.next_num, search=search, action=selected_action) }}" class="btn btn-sm" style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--glass-border); padding:6px 12px; border-radius:4px; text-decoration:none; font-size:13px;">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

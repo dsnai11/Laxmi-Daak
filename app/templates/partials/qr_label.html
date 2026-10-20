@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Print Label - {{ tracking_number }}</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background: #f0f0f0; display: flex; justify-content: center; }
+    .label-container { background: white; width: 4in; height: 6in; padding: 0.2in; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; border: 1px solid #ccc; }
+    
+    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+    .company { font-size: 20px; font-weight: bold; text-transform: uppercase; }
+    
+    .qr-section { text-align: center; margin-bottom: 15px; }
+    .qr-image { width: 1.5in; height: 1.5in; display: inline-block; }
+    .tracking-no { font-family: 'Courier New', Courier, monospace; font-size: 24px; font-weight: bold; margin-top: 5px; letter-spacing: 2px; }
+    
+    .info-grid { display: grid; grid-template-columns: 1fr; gap: 15px; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 15px; }
+    
+    .info-box { border: 1px solid #000; padding: 10px; }
+    .info-title { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; background: #000; color: #fff; padding: 2px 5px; display: inline-block; }
+    .info-text { font-size: 16px; margin: 2px 0; }
+    .info-subtext { font-size: 12px; color: #555; }
+    
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .meta-box { text-align: center; border: 1px solid #000; padding: 8px; font-weight: bold; font-size: 14px; }
+    
+    .footer { position: absolute; bottom: 0.2in; left: 0.2in; right: 0.2in; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #ccc; padding-top: 5px; }
+    
+    .print-btn-container { position: fixed; top: 20px; right: 20px; }
+    .print-btn { background: #4f8ef7; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+    
+    @media print {
+      body { background: white; padding: 0; display: block; }
+      .label-container { box-shadow: none; border: none; width: 4in; height: 6in; page-break-after: always; }
+      .print-btn-container { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="print-btn-container">
+    <button class="print-btn" onclick="window.print()">🖨️ Print Label</button>
+  </div>
+
+  <div class="label-container">
+    
+    <div class="header">
+      <div class="company">{{ company_name|default('Courier Tracking') }}</div>
+      <div style="font-size: 12px; margin-top: 4px;">PRIORITY EXPRESS SHIPPING</div>
+    </div>
+    
+    <div class="qr-section">
+      <img src="{{ qr_path }}" alt="QR Code" class="qr-image">
+      <div class="tracking-no">{{ tracking_number }}</div>
+    </div>
+    
+    <div class="info-grid">
+      <div class="info-box">
+        <div class="info-title">SHIP TO (RECEIVER)</div>
+        <p class="info-text"><strong>{{ receiver_name }}</strong></p>
+        <p class="info-text">{{ dest_branch_name }}</p>
+        <p class="info-subtext">Ph: {{ receiver_phone|default('N/A') }}</p>
+      </div>
+      
+      <div class="info-box" style="border-style: dashed;">
+        <div class="info-title">FROM (SENDER)</div>
+        <p class="info-text"><strong>{{ sender_name }}</strong></p>
+        <p class="info-text">{{ source_branch_name }}</p>
+        <p class="info-subtext">Ph: {{ sender_phone|default('N/A') }}</p>
+      </div>
+    </div>
+    
+    <div class="meta-grid">
+      <div class="meta-box" style="font-size: 18px; text-transform: uppercase;">
+        {{ priority }}
+      </div>
+      <div class="meta-box">
+        Date: {{ date }}<br>
+        <span style="font-size: 10px; font-weight: normal;">Wt: {{ weight|default('__') }} kg</span>
+      </div>
+    </div>
+    
+    <div class="footer">
+      Scan QR code or visit tracking site to check status.<br>
+      Generated on {{ time }}
+    </div>
+    
+  </div>
+  
+  <script>
+    // Auto trigger print if query param specifies
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      if(urlParams.get('auto') === 'true') {
+        setTimeout(window.print, 500);
+      }
+    };
+  </script>
+
+</body>
+</html>

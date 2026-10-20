@@ -1,0 +1,984 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Dispatch Details | {{ parcel.tracking_number }}{% endblock %}
+{% block page_title %}✏️ Edit Dispatch{% endblock %}
+{% block breadcrumb %}Operations / Edit / {{ parcel.tracking_number }}{% endblock %}
+
+{% block content %}
+<div class="dispatch-form-container animate-fade-in" style="max-width: 900px; margin: 0 auto;">
+  
+  <form method="POST" action="{{ url_for('dispatch.edit_dispatch', tracking_number=parcel.tracking_number) }}" enctype="multipart/form-data" id="editForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <!-- Tracking Info Header Card -->
+    <div class="glass-card" style="padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--accent-blue);">
+      <div>
+        <div style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Tracking Number</div>
+        <div style="font-family: monospace; font-size: 22px; font-weight: 700; color: var(--accent-blue);">{{ parcel.tracking_number }}</div>
+      </div>
+      <div>
+        <span class="badge badge-{{ parcel.status.lower() }}">{{ parcel.status_label }}</span>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-bottom: 24px;">
+      
+      <!-- Sender Section -->
+      <div class="glass-card" style="padding: 24px; border-radius: 12px;">
+        <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+          <span>📤</span> Sender Information
+        </h3>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Sender Name <span style="color: #ef4444;">*</span></label>
+          <input type="text" name="sender_name" value="{{ parcel.sender_name }}" required class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Sender Phone</label>
+          <input type="tel" name="sender_phone" value="{{ parcel.sender_phone }}" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Sender Email</label>
+          <input type="email" name="sender_email" value="{{ parcel.sender_email }}" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Source Branch <span style="color: #ef4444;">*</span></label>
+          <select name="sender_branch_id" id="senderBranchSelect" required class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" {% if current_user.role != 'superadmin' %}disabled{% endif %} >
+            {% for branch in branches %}
+            <option value="{{ branch.id }}" 
+                    data-address="{% if branch.address %}{{ branch.address }}{% if branch.city %}, {{ branch.city }}{% endif %}{% if branch.state %}, {{ branch.state }}{% endif %}{% if branch.pincode %} - {{ branch.pincode }}{% endif %}{% endif %}"
+                    data-state="{{ branch.state|escape }}"
+                    {% if parcel.sender_branch_id == branch.id %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">{{ branch.name }}</option>
+            {% endfor %}
+          </select>
+          {% if current_user.role != 'superadmin' %}
+          <input type="hidden" name="sender_branch_id" value="{{ parcel.sender_branch_id }}">
+          {% endif %}
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Sender Address</label>
+          <textarea name="sender_address" rows="3" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; resize: none;">{{ parcel.sender_address }}</textarea>
+        </div>
+      </div>
+      
+      <!-- Receiver Section -->
+      <div class="glass-card" style="padding: 24px; border-radius: 12px;">
+        <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+          <span>📥</span> Receiver Information
+        </h3>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; font-weight: 600; color: var(--accent-blue);">Quick Select Registered Receiver (Email List)</label>
+          <select id="receiver_user_select" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" >
+            <option value="" style="background: var(--bg-primary); color: var(--text-primary);">-- Select Receiver from Registered Accounts / Emails --</option>
+            {% for u in users %}
+            <option value="{{ u.id }}" 
+                    data-name="{{ u.name }}" 
+                    data-email="{{ u.email or u.username }}" 
+                    data-phone="{{ u.phone }}" 
+                    data-branch="{{ u.branch_id or '' }}" 
+                    data-address="{% if u.branch %}{{ u.branch.address }}{% if u.branch.city %}, {{ u.branch.city }}{% endif %}{% if u.branch.state %}, {{ u.branch.state }}{% endif %}{% if u.branch.pincode %} - {{ u.branch.pincode }}{% endif %}{% endif %}"
+                    style="background: var(--bg-primary); color: var(--text-primary);">
+              {{ u.name }} — {% if u.email %}{{ u.email }}{% else %}{{ u.username }}{% endif %}{% if u.branch_name %} ({{ u.branch_name }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Receiver Name <span style="color: #ef4444;">*</span></label>
+          <input type="text" name="receiver_name" value="{{ parcel.receiver_name }}" required class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Receiver Phone</label>
+          <input type="tel" name="receiver_phone" value="{{ parcel.receiver_phone }}" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Receiver Email</label>
+          <input type="email" name="receiver_email" value="{{ parcel.receiver_email }}" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Destination Branch <span style="color: #ef4444;">*</span></label>
+          <select name="receiver_branch_id" id="receiverBranchSelect" required class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" >
+            <option value="" style="background: var(--bg-primary); color: var(--text-primary);">-- Select Destination --</option>
+            {% for branch in branches %}
+            <option value="{{ branch.id }}" 
+                    data-phone="{{ branch.phone or '' }}" 
+                    data-address="{% if branch.address %}{{ branch.address }}{% if branch.city %}, {{ branch.city }}{% endif %}{% if branch.state %}, {{ branch.state }}{% endif %}{% if branch.pincode %} - {{ branch.pincode }}{% endif %}{% endif %}"
+                    data-state="{{ branch.state|escape }}"
+                    {% if parcel.receiver_branch_id == branch.id %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">{{ branch.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Receiver Address</label>
+          <textarea name="receiver_address" rows="3" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; resize: none;">{{ parcel.receiver_address }}</textarea>
+        </div>
+      </div>
+      
+    </div>
+    
+    <!-- Package Details -->
+    <div class="glass-card" style="padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <span>📦</span> Package Details
+      </h3>
+      
+      <div class="form-grid-4" style="gap: 20px;">
+        <div class="form-group" style="position: relative;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Select Item(s) *</label>
+          <select id="itemMasterDropdown"  class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+            <option value="">-- Add Items --</option>
+            {% for item in items %}
+            <option value="{{ item.name }}">{{ item.name }}</option>
+            {% endfor %}
+          </select>
+          
+          <!-- Selected Items Tags -->
+          <div id="selectedItemsContainer" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;"></div>
+          
+          <!-- Compiled description input -->
+          <input type="hidden" name="description" id="compiledDescription" value="{{ parcel.description }}" required>
+        </div>
+        
+        <div class="form-group">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Priority</label>
+          <select name="priority" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" onchange="calculateBilling()">
+            <option value="Normal" {% if parcel.priority.lower() == 'normal' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Normal</option>
+            <option value="Urgent" {% if parcel.priority.lower() == 'urgent' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Urgent</option>
+            <option value="Express" {% if parcel.priority.lower() == 'express' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Express (Same Day)</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Weight & Unit *</label>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <input type="number" step="any" min="0" name="weight" id="weightInput" value="{{ parcel.weight }}" class="form-control" style="flex: 1; min-width: 90px; padding: 10px 10px; font-size: 15px; font-weight: 600; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" oninput="calculateBilling()" onchange="calculateBilling()">
+            <select name="weight_unit" id="weightUnitSelect" class="form-control" style="width: 72px; min-width: 72px; flex-shrink: 0; padding: 10px 4px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-weight: 700; text-align: center;" onchange="calculateBilling()">
+              <option value="kg" selected style="background: var(--bg-primary); color: var(--text-primary);">KG</option>
+              <option value="gms" style="background: var(--bg-primary); color: var(--text-primary);">GMS</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Mode of Transfer</label>
+          <select name="transfer_mode" id="transferModeSelect" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" onchange="toggleCourierPartner(); calculateBilling();">
+            <option value="by_courier" {% if parcel.transfer_mode == 'by_courier' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">By Courier</option>
+            <option value="by_hand" {% if parcel.transfer_mode == 'by_hand' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">By Hand</option>
+            <option value="by_bus" {% if parcel.transfer_mode == 'by_bus' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">By Bus</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Courier Details -->
+      <div class="animate-fade-in" id="courierPartnerGroup" style="margin-top: 16px; display: none;">
+        <div class="form-grid" style="gap: 16px;">
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Courier Service Company Name *</label>
+            <select name="courier_partner" id="courierPartnerSelect" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" onchange="toggleOtherCourier(); calculateBilling();">
+              <option value="" style="background: var(--bg-primary); color: var(--text-primary);">-- Select Courier Partner --</option>
+              <option value="Blue Dart" {% if parcel.courier_partner == 'Blue Dart' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Blue Dart</option>
+              <option value="Pushpak" {% if parcel.courier_partner == 'Pushpak' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Pushpak</option>
+              <option value="Professional" {% if parcel.courier_partner == 'Professional' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Professional</option>
+              <option value="Trackon" {% if parcel.courier_partner == 'Trackon' %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary);">Trackon</option>
+              <option value="Other Company" {% if parcel.courier_partner and parcel.courier_partner not in ['Blue Dart', 'Pushpak', 'Professional', 'Trackon'] %}selected{% endif %} style="background: var(--bg-primary); color: var(--text-primary); font-weight: 600;">Other Company...</option>
+            </select>
+            
+            <!-- Blue Dart Zone Select Group -->
+            <div id="blueDartZoneGroup" style="{% if parcel.courier_partner == 'Blue Dart' %}display: block;{% else %}display: none;{% endif %} margin-top: 10px;">
+              <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 4px; font-weight: 600; color: #3b82f6;">Select Blue Dart Delivery Rate / Zone *</label>
+              <select id="blueDartZoneSelect" class="form-control" style="width: 100%; padding: 8px 12px; background: var(--bg-primary); border: 1px solid rgba(59,130,246,0.4); color: var(--text-primary); border-radius: 6px; font-weight: 600;" onchange="calculateBilling()">
+                <option value="Rajasthan" style="background: var(--bg-primary); color: var(--text-primary);">📍 Rajasthan (Within RJ) — ₹350.00</option>
+                <option value="Outside Rajasthan" style="background: var(--bg-primary); color: var(--text-primary);">🌍 Outside Rajasthan (Out of RJ) — ₹550.00</option>
+              </select>
+            </div>
+            
+            <!-- Other Courier Specify Group -->
+            <div id="otherCourierSpecifyGroup" style="{% if parcel.courier_partner and parcel.courier_partner not in ['Blue Dart', 'Pushpak', 'Professional', 'Trackon'] %}display: block;{% else %}display: none;{% endif %} margin-top: 10px;">
+              <label style="display: block; color: var(--text-secondary); font-size: 11px; margin-bottom: 4px; color: var(--accent-blue);">Specify Courier Company Name *</label>
+              <input type="text" name="other_courier_name" id="otherCourierNameInput" value="{% if parcel.courier_partner and parcel.courier_partner not in ['Blue Dart', 'Pushpak', 'Professional', 'Trackon'] %}{{ parcel.courier_partner }}{% endif %}" class="form-control" placeholder="Enter company name" style="width: 100%; padding: 8px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" >
+            </div>
+          </div>
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Courier Tracking ID / Docket No.</label>
+            <input type="text" name="courier_id" id="courierIdInput" value="{{ parcel.courier_id }}" class="form-control" placeholder="Enter Docket / AWB number" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Bus Details -->
+      <div class="animate-fade-in" id="busDetailsGroup" style="margin-top: 16px; display: none;">
+        <div class="form-grid" style="gap: 16px;">
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Bus Number</label>
+            <input type="text" name="bus_number" id="busNumberInput" value="{{ parcel.bus_number }}" class="form-control" placeholder="e.g. RJ-14-PB-1234" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+          </div>
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Driver Calling / Mobile Number</label>
+            <input type="tel" name="driver_phone" id="driverPhoneInput" value="{{ parcel.driver_phone }}" class="form-control" placeholder="e.g. +91 9876543210" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Hand Carry Details -->
+      <div class="animate-fade-in" id="handDetailsGroup" style="margin-top: 16px; display: none;">
+        <div class="form-grid" style="gap: 16px;">
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Person Name</label>
+            <input type="text" name="hand_carry_name" id="handCarryNameInput" value="{{ parcel.hand_carry_name }}" class="form-control" placeholder="Enter person name" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+          </div>
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Person Mobile Number</label>
+            <input type="tel" name="hand_carry_phone" id="handCarryPhoneInput" value="{{ parcel.hand_carry_phone }}" class="form-control" placeholder="Enter mobile number" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-group" style="margin-top: 16px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">Special Instructions</label>
+        <input type="text" name="special_instructions" value="{{ parcel.special_instructions }}" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;">
+      </div>
+    </div>
+
+    <!-- Billing & Charges -->
+    <div class="glass-card" style="padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(16,185,129,0.2); background: rgba(16,185,129,0.02);">
+      <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+        <span style="display: flex; align-items: center; gap: 8px;">💵 Billing & Charges</span>
+        <span id="busEditBadge" style="display: none; background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;">
+          ✏️ Custom Bus Rate Editable
+        </span>
+      </h3>
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">Estimated Bill Amount</div>
+          <div id="standardBillingDisplay" style="display: flex; align-items: center;">
+            <div style="font-size: 28px; font-weight: 800; color: #10b981;" id="billingAmountDisplay">₹{{ "%.2f"|format(parcel.billing_amount or 0.0) }}</div>
+          </div>
+          <div id="busEditableDisplay" style="display: none; align-items: center; gap: 6px;">
+            <span style="font-size: 24px; font-weight: 800; color: #10b981;">₹</span>
+            <input type="number" step="0.01" min="0" id="busRateOverrideInput" class="form-control" value="{{ "%.2f"|format(parcel.billing_amount or 0.0) }}" placeholder="0.00"
+                   style="width: 150px; font-size: 22px; font-weight: 800; color: #10b981; padding: 6px 12px; background: var(--bg-primary); border: 2px solid #10b981; border-radius: 8px;"
+                   oninput="onBusRateOverrideChange()">
+          </div>
+          <input type="hidden" name="billing_amount" id="billingAmountInput" value="{{ "%.2f"|format(parcel.billing_amount or 0.0) }}">
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); max-width: 400px;" id="billingFormulaDisplay">
+          Charges calculated based on transfer mode and weight.
+        </div>
+      </div>
+    </div>
+
+    <!-- Expected Delivery Due Date -->
+    <div class="glass-card" style="padding: 24px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(251,191,36,0.2); background: rgba(251,191,36,0.03);">
+      <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <span>⏰</span> Expected Delivery Due Date <span style="font-size: 12px; color: var(--text-muted); font-weight: 400;">(Optional)</span>
+      </h3>
+      
+      <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Select Due Date</label>
+          <input type="date" name="due_date" id="dueDateInput" value="{% if parcel.due_date %}{{ parcel.due_date }}{% endif %}" class="form-control"
+                 style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid rgba(251,191,36,0.4); color: var(--text-primary); border-radius: 6px;">
+        </div>
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Quick Set</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" onclick="setDueDate(1)" class="btn btn-sm" style="background: rgba(251,191,36,0.1); color: #f59e0b; border: 1px solid rgba(251,191,36,0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">+1 Day</button>
+            <button type="button" onclick="setDueDate(3)" class="btn btn-sm" style="background: rgba(251,191,36,0.1); color: #f59e0b; border: 1px solid rgba(251,191,36,0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">+3 Days</button>
+            <button type="button" onclick="setDueDate(5)" class="btn btn-sm" style="background: rgba(251,191,36,0.1); color: #f59e0b; border: 1px solid rgba(251,191,36,0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">+5 Days</button>
+            <button type="button" onclick="setDueDate(7)" class="btn btn-sm" style="background: rgba(251,191,36,0.1); color: #f59e0b; border: 1px solid rgba(251,191,36,0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">+7 Days</button>
+            <button type="button" onclick="setDueDate(15)" class="btn btn-sm" style="background: rgba(251,191,36,0.1); color: #f59e0b; border: 1px solid rgba(251,191,36,0.3); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">+15 Days</button>
+            <button type="button" onclick="clearDueDate()" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">Clear</button>
+          </div>
+        </div>
+      </div>
+      
+      <div id="dueDatePreview" style="display:none; margin-top: 14px; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 12px 16px; color: #f59e0b; font-size: 13px; font-weight: 500;">
+        ⏰ <span id="dueDatePreviewText"></span>
+      </div>
+    </div>
+
+    <!-- Package Photos -->
+    <div class="glass-card" style="padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <span>📷</span> Package Photos
+      </h3>
+      
+      <!-- Existing Photos -->
+      {% if parcel.photos %}
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 10px;">Current Photos:</label>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          {% for p in parcel.photos %}
+          <div style="width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); position: relative;">
+            <img src="{{ p }}" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="photo-upload-area" style="border: 2px dashed var(--glass-border); border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; background: var(--bg-primary);" id="dropArea">
+        <div style="font-size: 40px; margin-bottom: 12px;">📸</div>
+        <p style="margin: 0 0 8px 0; font-size: 15px; color: var(--text-primary); font-weight: 600;">Add More Photos</p>
+        <p style="margin: 0; font-size: 12px; color: var(--text-muted);">Click to upload or drag & drop files here</p>
+        <input type="file" name="photos" id="photoInput" multiple accept="image/*" style="display: none;">
+      </div>
+      
+      <!-- Selected New Photos Preview -->
+      <div id="previewGrid" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px;"></div>
+    </div>
+    
+    <!-- Submit Row -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 32px;">
+      <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=parcel.tracking_number) }}" class="btn btn-ghost" style="padding: 14px 28px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">Cancel</a>
+      <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; padding: 14px 32px; font-size: 15px; font-weight: 600; border-radius: 8px; color: white; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+        💾 Save Changes
+      </button>
+    </div>
+    
+  </form>
+</div>
+
+<script>
+// Global rates cache
+let billingRates = {};
+let selectedItems = [];
+
+// Courier Partner / Transport Mode Toggle Logic
+function toggleCourierPartner() {
+  const modeSelect = document.getElementById('transferModeSelect');
+  
+  const partnerGroup = document.getElementById('courierPartnerGroup');
+  const partnerSelect = document.getElementById('courierPartnerSelect');
+  const courierIdInput = document.getElementById('courierIdInput');
+  
+  const busGroup = document.getElementById('busDetailsGroup');
+  const busNumberInput = document.getElementById('busNumberInput');
+  const driverPhoneInput = document.getElementById('driverPhoneInput');
+  
+  const handGroup = document.getElementById('handDetailsGroup');
+  const handNameInput = document.getElementById('handCarryNameInput');
+  const handPhoneInput = document.getElementById('handCarryPhoneInput');
+  
+  if (!modeSelect) return;
+  
+  // Hide all first
+  if (partnerGroup) partnerGroup.style.display = 'none';
+  if (busGroup) busGroup.style.display = 'none';
+  if (handGroup) handGroup.style.display = 'none';
+  
+  // Reset required
+  if (partnerSelect) partnerSelect.required = false;
+  if (courierIdInput) courierIdInput.required = false;
+  if (busNumberInput) busNumberInput.required = false;
+  if (driverPhoneInput) driverPhoneInput.required = false;
+  if (handNameInput) handNameInput.required = false;
+  if (handPhoneInput) handPhoneInput.required = false;
+  
+  if (modeSelect.value === 'by_courier') {
+    if (partnerGroup) partnerGroup.style.display = 'block';
+    if (partnerSelect) partnerSelect.required = true;
+    if (courierIdInput) courierIdInput.required = false;
+  } else if (modeSelect.value === 'by_bus') {
+    if (busGroup) busGroup.style.display = 'block';
+    if (busNumberInput) busNumberInput.required = false;
+    if (driverPhoneInput) driverPhoneInput.required = false;
+  } else if (modeSelect.value === 'by_hand') {
+    if (handGroup) handGroup.style.display = 'block';
+    if (handNameInput) handNameInput.required = false;
+    if (handPhoneInput) handPhoneInput.required = false;
+  }
+}
+
+function selectReceiverUser(selectEl) {
+  if (!selectEl || selectEl.selectedIndex < 0) return;
+  const selectedOption = selectEl.options[selectEl.selectedIndex];
+  if (!selectedOption || !selectedOption.value) return;
+  
+  const name = selectedOption.getAttribute('data-name');
+  let email = selectedOption.getAttribute('data-email');
+  let phone = selectedOption.getAttribute('data-phone');
+  const branchId = selectedOption.getAttribute('data-branch');
+  const departmentId = selectedOption.getAttribute('data-department');
+  let address = selectedOption.getAttribute('data-address');
+  
+  const rName = document.querySelector('input[name="receiver_name"]');
+  const rAddress = document.querySelector('textarea[name="receiver_address"]');
+  if (rName) rName.value = name || '';
+  if (rAddress) rAddress.value = address || '';
+  
+  const rEmailInput = document.querySelector('input[name="receiver_email"]');
+  if (email && email.includes('@')) {
+    if (rEmailInput) rEmailInput.value = email;
+  } else {
+    if (rEmailInput) rEmailInput.value = '';
+  }
+  
+  if (phone) {
+    const rPhone = document.querySelector('input[name="receiver_phone"]');
+    if (rPhone) rPhone.value = phone;
+  }
+  
+  if (departmentId) {
+    const deptSelect = document.getElementById('receiverDepartmentSelect');
+    if (deptSelect) deptSelect.value = departmentId;
+  }
+  
+  if (branchId) {
+    const branchSelect = document.querySelector('select[name="receiver_branch_id"]');
+    if (branchSelect) {
+      branchSelect.value = branchId;
+      const selectedBranchOpt = branchSelect.options[branchSelect.selectedIndex];
+      if (selectedBranchOpt) {
+        const branchPhone = selectedBranchOpt.getAttribute('data-phone');
+        const branchEmail = selectedBranchOpt.getAttribute('data-email');
+        const branchAddr = selectedBranchOpt.getAttribute('data-address');
+        
+        if (!phone && branchPhone) {
+          const rPhoneField = document.querySelector('input[name="receiver_phone"]');
+          if (rPhoneField) rPhoneField.value = branchPhone;
+        }
+        if ((!email || !email.includes('@')) && branchEmail && branchEmail.includes('@')) {
+          if (rEmailInput) rEmailInput.value = branchEmail;
+        }
+        if (!address && branchAddr) {
+          if (rAddress) rAddress.value = branchAddr;
+        }
+      }
+    }
+  }
+  
+  ['input[name="receiver_name"]', 'input[name="receiver_email"]', 'input[name="receiver_phone"]'].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el && el.value) {
+      el.style.borderColor = '#10b981';
+      setTimeout(() => { el.style.borderColor = ''; }, 2000);
+    }
+  });
+}
+
+// Auto-fill Sender Address from Source Branch selection
+function updateSenderAddressFromBranch(selectEl) {
+  if (!selectEl || selectEl.selectedIndex < 0) return;
+  const selectedOption = selectEl.options[selectEl.selectedIndex];
+  if (selectedOption) {
+    const address = selectedOption.getAttribute('data-address');
+    const senderAddressField = document.querySelector('textarea[name="sender_address"]');
+    if (senderAddressField) {
+      senderAddressField.value = address || '';
+    }
+  }
+}
+
+// Auto-fill Receiver Phone, Email & Address from Destination Branch selection
+function updateReceiverFromBranch(selectEl) {
+  if (!selectEl || selectEl.selectedIndex < 0) return;
+  const selectedOption = selectEl.options[selectEl.selectedIndex];
+  if (selectedOption && selectedOption.value) {
+    const phone = selectedOption.getAttribute('data-phone');
+    const email = selectedOption.getAttribute('data-email');
+    const address = selectedOption.getAttribute('data-address');
+    const branchName = selectedOption.text.trim();
+    
+    const rPhoneField = document.querySelector('input[name="receiver_phone"]');
+    const rEmailField = document.querySelector('input[name="receiver_email"]');
+    const rAddressField = document.querySelector('textarea[name="receiver_address"]');
+    const rNameField = document.querySelector('input[name="receiver_name"]');
+    
+    if (phone && rPhoneField) {
+      rPhoneField.value = phone;
+      rPhoneField.style.borderColor = '#10b981';
+      setTimeout(() => { rPhoneField.style.borderColor = ''; }, 2000);
+    }
+    if (email && rEmailField) {
+      rEmailField.value = email;
+      rEmailField.style.borderColor = '#10b981';
+      setTimeout(() => { rEmailField.style.borderColor = ''; }, 2000);
+    }
+    if (address && rAddressField) {
+      rAddressField.value = address;
+      rAddressField.style.borderColor = '#10b981';
+      setTimeout(() => { rAddressField.style.borderColor = ''; }, 2000);
+    }
+    if (rNameField && !rNameField.value.trim() && branchName) {
+      rNameField.value = branchName;
+      rNameField.style.borderColor = '#10b981';
+      setTimeout(() => { rNameField.style.borderColor = ''; }, 2000);
+    }
+    
+    const branchState = selectedOption.getAttribute('data-state');
+    const blueDartSelect = document.getElementById('blueDartZoneSelect');
+    if (blueDartSelect && branchState) {
+      if (branchState.toLowerCase().includes('rajasthan')) {
+        blueDartSelect.value = 'Rajasthan';
+      } else {
+        blueDartSelect.value = 'Outside Rajasthan';
+      }
+    }
+  }
+}
+
+function selectMasterItem(selectEl) {
+  if (!selectEl) return;
+  const val = selectEl.value;
+  if (!val) return;
+  
+  if (!selectedItems.includes(val)) {
+    selectedItems.push(val);
+    renderSelectedItems();
+  }
+  selectEl.value = '';
+}
+
+function removeSelectedItem(item) {
+  selectedItems = selectedItems.filter(i => i !== item);
+  renderSelectedItems();
+}
+
+function renderSelectedItems() {
+  const container = document.getElementById('selectedItemsContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  selectedItems.forEach(item => {
+    const badge = document.createElement('span');
+    badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
+    badge.style.gap = '6px';
+    badge.style.background = 'rgba(79, 142, 247, 0.15)';
+    badge.style.color = '#4f8ef7';
+    badge.style.padding = '6px 12px';
+    badge.style.borderRadius = '6px';
+    badge.style.fontSize = '12px';
+    badge.style.fontWeight = '600';
+    badge.style.border = '1px solid rgba(79, 142, 247, 0.3)';
+    badge.innerHTML = `
+      <span>📦 ${item}</span>
+      <span onclick="removeSelectedItem('${item}')" style="cursor:pointer; font-weight:bold; color:var(--text-muted); font-size:14px; margin-left:4px;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">&times;</span>
+    `;
+    container.appendChild(badge);
+  });
+  
+  const compDesc = document.getElementById('compiledDescription');
+  if (compDesc) compDesc.value = selectedItems.join(', ');
+}
+
+let isBusUserOverridden = false;
+
+function onBusRateOverrideChange() {
+  isBusUserOverridden = true;
+  const busInput = document.getElementById('busRateOverrideInput');
+  const val = parseFloat(busInput.value) || 0;
+  
+  const displayEl = document.getElementById('billingAmountDisplay');
+  const inputEl = document.getElementById('billingAmountInput');
+  const formulaEl = document.getElementById('billingFormulaDisplay');
+  
+  if (displayEl) displayEl.textContent = `₹${val.toFixed(2)}`;
+  if (inputEl) inputEl.value = val.toFixed(2);
+  if (formulaEl) {
+    formulaEl.innerHTML = `<strong>By Bus (Custom Editable Rate):</strong> Manually specified rate = <strong>₹${val.toFixed(2)}</strong>`;
+  }
+}
+
+function calculateBilling() {
+  const modeSelect = document.getElementById('transferModeSelect');
+  const weightInput = document.getElementById('weightInput');
+  const weightUnitSelect = document.getElementById('weightUnitSelect');
+  const courierSelect = document.getElementById('courierPartnerSelect');
+  const receiverSelect = document.getElementById('receiverBranchSelect');
+  const prioritySelect = document.querySelector('select[name="priority"]');
+  const blueDartZoneSelect = document.getElementById('blueDartZoneSelect');
+  
+  if (!modeSelect) return;
+
+  const displayEl = document.getElementById('billingAmountDisplay');
+  const inputEl = document.getElementById('billingAmountInput');
+  const formulaEl = document.getElementById('billingFormulaDisplay');
+  
+  const standardDisplay = document.getElementById('standardBillingDisplay');
+  const busEditableDisplay = document.getElementById('busEditableDisplay');
+  const busEditBadge = document.getElementById('busEditBadge');
+  const busInput = document.getElementById('busRateOverrideInput');
+
+  const mode = modeSelect.value;
+  
+  if (mode === 'by_bus') {
+    if (standardDisplay) standardDisplay.style.display = 'none';
+    if (busEditableDisplay) busEditableDisplay.style.display = 'flex';
+    if (busEditBadge) busEditBadge.style.display = 'inline-block';
+    
+    if (isBusUserOverridden && busInput && busInput.value !== '') {
+      onBusRateOverrideChange();
+      return;
+    }
+  } else {
+    if (standardDisplay) standardDisplay.style.display = 'flex';
+    if (busEditableDisplay) busEditableDisplay.style.display = 'none';
+    if (busEditBadge) busEditBadge.style.display = 'none';
+    isBusUserOverridden = false;
+  }
+  
+  const rawWeight = parseFloat(weightInput ? weightInput.value : 0) || 0;
+  
+  const unit = weightUnitSelect ? weightUnitSelect.value : 'kg';
+  let weightInKg = 0;
+  let weightInGrams = 0;
+  
+  if (unit === 'gms') {
+    weightInGrams = rawWeight;
+    weightInKg = rawWeight / 1000.0;
+  } else {
+    weightInKg = rawWeight;
+    weightInGrams = rawWeight * 1000.0;
+  }
+  
+  const priorityVal = prioritySelect ? prioritySelect.value.toLowerCase() : 'normal';
+  
+  let receiverState = "Default";
+  if (receiverSelect && receiverSelect.selectedIndex >= 0) {
+    receiverState = receiverSelect.options[receiverSelect.selectedIndex].getAttribute('data-state') || "Default";
+  }
+  const stateLabel = receiverState === "Default" ? "Default Rates" : `Rates for ${receiverState}`;
+  
+  let total = 0;
+  let formulaText = "";
+  
+  if (mode === 'by_courier') {
+    const courier = courierSelect ? courierSelect.value : "";
+    let rateKey = courier;
+    if (courier === 'Other Company') {
+      rateKey = 'Other Company';
+    }
+    
+    const rate = billingRates[rateKey];
+    
+    if (courier === 'Pushpak') {
+      // Gram-Based Tiered Pricing for Pushpak
+      const isPremium = (priorityVal === 'express' || priorityVal === 'urgent');
+      
+      let baseRate = 35.0;
+      let extraRate = 25.0;
+      let serviceLabel = "NORMAL Service";
+      
+      if (rate) {
+        if (isPremium) {
+          baseRate = (rate.pushpak_premium_base !== undefined && rate.pushpak_premium_base !== null) ? parseFloat(rate.pushpak_premium_base) : 300.0;
+          extraRate = (rate.pushpak_premium_extra !== undefined && rate.pushpak_premium_extra !== null) ? parseFloat(rate.pushpak_premium_extra) : 200.0;
+          serviceLabel = "PREMIUM Service";
+        } else {
+          baseRate = (rate.pushpak_normal_base !== undefined && rate.pushpak_normal_base !== null) ? parseFloat(rate.pushpak_normal_base) : 35.0;
+          extraRate = (rate.pushpak_normal_extra !== undefined && rate.pushpak_normal_extra !== null) ? parseFloat(rate.pushpak_normal_extra) : 25.0;
+          serviceLabel = "NORMAL Service";
+        }
+      }
+      
+      if (weightInGrams <= 500) {
+        total = baseRate;
+        formulaText = `Pushpak (${serviceLabel}): Base ₹${baseRate.toFixed(2)} (upto 500g). Package Weight: ${weightInGrams}g (${weightInKg.toFixed(2)}kg)`;
+      } else {
+        const extraGrams = weightInGrams - 500;
+        const extraSlabs = Math.ceil(extraGrams / 500);
+        total = baseRate + (extraSlabs * extraRate);
+        formulaText = `Pushpak (${serviceLabel}): Base ₹${baseRate.toFixed(2)} (upto 500g) + ${extraSlabs} extra 500g slab(s) × ₹${extraRate.toFixed(2)}. Package Weight: ${weightInGrams}g (${weightInKg.toFixed(2)}kg)`;
+      }
+      
+    } else if (courier === 'Blue Dart') {
+      // State-Based Flat Rate for Blue Dart: RJ = 350, Out of RJ = 550
+      const bdZone = blueDartZoneSelect ? blueDartZoneSelect.value : (receiverState.toLowerCase().includes('rajasthan') ? 'Rajasthan' : 'Outside Rajasthan');
+      let flatRate = 550.0;
+      let zoneLabel = "Outside Rajasthan (Out of RJ)";
+      
+      if (bdZone === 'Rajasthan' || bdZone.toLowerCase().includes('rajasthan')) {
+        flatRate = 350.0;
+        zoneLabel = "Rajasthan (Within RJ)";
+      } else {
+        flatRate = 550.0;
+        zoneLabel = "Outside Rajasthan (Out of RJ)";
+      }
+      
+      total = flatRate;
+      formulaText = `Blue Dart (${zoneLabel}): Flat Rate per parcel = ₹${flatRate.toFixed(2)} (No per-kg charge)`;
+      
+    } else {
+      // Standard per-kg rate for Professional, Trackon, Other Company, etc.
+      let baseRate = rate ? parseFloat(rate.base_rate || 0) : 100;
+      let perKgRate = rate ? parseFloat(rate.per_kg_rate || 0) : 30;
+      total = baseRate + (perKgRate * weightInKg);
+      formulaText = `Courier (${courier || 'Standard'}): Base ₹${baseRate.toFixed(2)} + (${weightInKg.toFixed(2)}kg × ₹${perKgRate.toFixed(2)}/kg) (${stateLabel})`;
+    }
+    
+  } else if (mode === 'by_bus') {
+    const rate = billingRates['By Bus'];
+    let baseRate = rate ? parseFloat(rate.base_rate || 0) : 120;
+    let perKgRate = rate ? parseFloat(rate.per_kg_rate || 0) : 15;
+    total = baseRate + (perKgRate * weightInKg);
+    formulaText = `By Bus (Editable): Default ₹${total.toFixed(2)} (Type custom rate in input above to edit)`;
+    if (busInput && busInput.value === '') busInput.value = total.toFixed(2);
+    
+  } else if (mode === 'by_hand') {
+    const rate = billingRates['By Hand'];
+    let baseRate = rate ? parseFloat(rate.base_rate || 0) : 200;
+    let perKgRate = rate ? parseFloat(rate.per_kg_rate || 0) : 10;
+    total = baseRate + (perKgRate * weightInKg);
+    formulaText = `By Hand: Base ₹${baseRate.toFixed(2)} + (${weightInKg.toFixed(2)}kg × ₹${perKgRate.toFixed(2)}/kg) (${stateLabel})`;
+  }
+  
+  if (displayEl) displayEl.textContent = `₹${total.toFixed(2)}`;
+  if (inputEl) inputEl.value = total.toFixed(2);
+  if (formulaEl) {
+    formulaEl.innerHTML = `<strong>Formula:</strong> ${formulaText}. Total = <strong>₹${total.toFixed(2)}</strong>`;
+  }
+}
+
+function setDueDate(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  const val  = `${yyyy}-${mm}-${dd}`;
+  const dueInput = document.getElementById('dueDateInput');
+  if (dueInput) dueInput.value = val;
+  showDueDatePreview(d, days);
+}
+
+function clearDueDate() {
+  const dueInput = document.getElementById('dueDateInput');
+  const duePrev = document.getElementById('dueDatePreview');
+  if (dueInput) dueInput.value = '';
+  if (duePrev) duePrev.style.display = 'none';
+}
+
+function showDueDatePreview(dateObj, days) {
+  const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const formatted = dateObj.toLocaleDateString('en-IN', opts);
+  const prevText = document.getElementById('dueDatePreviewText');
+  const duePrev = document.getElementById('dueDatePreview');
+  if (prevText) {
+    prevText.textContent = `Parcel must reach receiver by ${formatted} (${days} day${days > 1 ? 's' : ''} from today)`;
+  }
+  if (duePrev) duePrev.style.display = 'block';
+}
+
+function toggleOtherCourier() {
+  const courierSelect = document.getElementById('courierPartnerSelect');
+  const specifyGroup = document.getElementById('otherCourierSpecifyGroup');
+  const specifyInput = document.getElementById('otherCourierNameInput');
+  
+  if (courierSelect && specifyGroup) {
+    if (courierSelect.value === 'Other Company') {
+      specifyGroup.style.display = 'block';
+      if (specifyInput) specifyInput.required = true;
+    } else {
+      specifyGroup.style.display = 'none';
+      if (specifyInput) {
+        specifyInput.required = false;
+        specifyInput.value = '';
+      }
+    }
+  }
+}
+
+function initEditDispatchForm() {
+  toggleCourierPartner();
+  toggleOtherCourier();
+  
+  window.updateBillingForSelectedState = function() {
+    const receiverSelect = document.getElementById('receiverBranchSelect');
+    let receiverState = "Default";
+    if (receiverSelect && receiverSelect.selectedIndex >= 0) {
+      receiverState = receiverSelect.options[receiverSelect.selectedIndex].getAttribute('data-state') || "Default";
+    }
+    
+    const url = `/api/billing/rates?state=${encodeURIComponent(receiverState)}`;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        billingRates = data;
+        calculateBilling();
+      })
+      .catch(err => {
+        console.error("Error fetching state rates:", err);
+        calculateBilling();
+      });
+  };
+  
+  updateBillingForSelectedState();
+
+  const senderBranchSelect = document.getElementById('senderBranchSelect');
+  if (senderBranchSelect) {
+    updateSenderAddressFromBranch(senderBranchSelect);
+  }
+
+  const curDesc = document.getElementById('compiledDescription').value;
+  if (curDesc) {
+    selectedItems = curDesc.split(',').map(s => s.trim()).filter(Boolean);
+    renderSelectedItems();
+  }
+  const weightInput = document.getElementById('weightInput');
+  if (weightInput) {
+    weightInput.addEventListener('input', calculateBilling);
+  }
+
+  const transferModeSelect = document.getElementById('transferModeSelect');
+  if (transferModeSelect) {
+    transferModeSelect.addEventListener('change', () => {
+      toggleCourierPartner();
+      calculateBilling();
+    });
+  }
+
+  const receiverBranchSelect = document.getElementById('receiverBranchSelect');
+  if (receiverBranchSelect) {
+    receiverBranchSelect.addEventListener('change', function() {
+      updateReceiverFromBranch(this);
+      updateBillingForSelectedState();
+    });
+  }
+
+  const senderBranchSelectEl = document.getElementById('senderBranchSelect');
+  if (senderBranchSelectEl) {
+    senderBranchSelectEl.addEventListener('change', function() {
+      updateSenderAddressFromBranch(this);
+    });
+  }
+
+  const receiverUserSelect = document.getElementById('receiver_user_select');
+  if (receiverUserSelect) {
+    receiverUserSelect.addEventListener('change', function() {
+      selectReceiverUser(this);
+    });
+  }
+
+  const itemMasterDropdown = document.getElementById('itemMasterDropdown');
+  if (itemMasterDropdown) {
+    itemMasterDropdown.addEventListener('change', function() {
+      selectMasterItem(this);
+    });
+  }
+
+  const courierPartnerSelect = document.getElementById('courierPartnerSelect');
+  if (courierPartnerSelect) {
+    courierPartnerSelect.addEventListener('change', () => {
+      toggleOtherCourier();
+      calculateBilling();
+    });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initEditDispatchForm);
+} else {
+  initEditDispatchForm();
+}
+
+document.addEventListener('blur', function(e) {
+  if (e.target && e.target.name === 'receiver_email') {
+    const emailVal = e.target.value.trim();
+    if (emailVal) {
+      fetch(`/api/users/lookup?email=${encodeURIComponent(emailVal)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const rName = document.querySelector('input[name="receiver_name"]');
+            const rPhone = document.querySelector('input[name="receiver_phone"]');
+            const rAddress = document.querySelector('textarea[name="receiver_address"]');
+            const rBranch = document.querySelector('select[name="receiver_branch_id"]');
+            
+            if (rName) rName.value = data.name || '';
+            if (rPhone) rPhone.value = data.phone || '';
+            if (rAddress && data.address) rAddress.value = data.address;
+            if (rBranch && data.branch_id) rBranch.value = data.branch_id;
+          }
+        })
+        .catch(err => console.error('Lookup user failed:', err));
+    }
+  }
+}, true);
+
+function initPhotoUpload() {
+  const dropArea = document.getElementById('dropArea');
+  const fileInput = document.getElementById('photoInput');
+  const previewGrid = document.getElementById('previewGrid');
+
+  if (dropArea && fileInput && previewGrid) {
+    dropArea.onclick = () => fileInput.click();
+    
+    dropArea.ondragover = (e) => {
+      e.preventDefault();
+      dropArea.style.borderColor = '#4f8ef7';
+      dropArea.style.background = 'rgba(79,142,247,0.05)';
+    };
+
+    dropArea.ondragleave = () => {
+      dropArea.style.borderColor = 'var(--glass-border)';
+      dropArea.style.background = 'var(--bg-primary)';
+    };
+
+    dropArea.ondrop = (e) => {
+      e.preventDefault();
+      dropArea.style.borderColor = 'var(--glass-border)';
+      dropArea.style.background = 'var(--bg-primary)';
+      
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleFiles(e.dataTransfer.files);
+      }
+    };
+
+    fileInput.onchange = () => {
+      if (fileInput.files.length) {
+        handleFiles(fileInput.files);
+      }
+    };
+
+    function handleFiles(files) {
+      previewGrid.innerHTML = '';
+      for (const file of files) {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const div = document.createElement('div');
+            div.style = 'width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); position: relative;';
+            div.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            previewGrid.appendChild(div);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+  }
+
+  const dueDateInput = document.getElementById('dueDateInput');
+  if (dueDateInput && dueDateInput.value) {
+    const d = new Date(dueDateInput.value + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((d - today) / 86400000);
+    showDueDatePreview(d, diff);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPhotoUpload);
+} else {
+  initPhotoUpload();
+}
+</script>
+
+<style>
+@media (max-width: 768px) {
+  .form-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}

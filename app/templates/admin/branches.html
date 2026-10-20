@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Branches{% endblock %}
+{% block page_title %}Branches ({{ branches.total }}){% endblock %}
+{% block breadcrumb %}Administration / Branches{% endblock %}
+
+{% block content %}
+<div class="admin-container animate-fade-in">
+  
+  <div class="action-bar glass-card" style="padding: 16px; border-radius: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div style="position: relative;">
+      <input type="text" id="branchSearch" placeholder="Search branches..." class="form-control" oninput="filterBranches()" style="padding: 8px 12px 8px 32px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; width: 250px; font-size: 13px;">
+      <span style="position: absolute; left: 10px; top: 9px; font-size: 12px; color: var(--text-muted);">🔍</span>
+    </div>
+    
+    <div style="display: flex; gap: 12px;">
+      <a href="{{ url_for('admin.branch_template') }}" class="btn btn-ghost" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">📄 Template</a>
+      <button onclick="showAdminModal('importModal')" class="btn btn-ghost" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;">📥 Import</button>
+      <button onclick="showAdminModal('addBranchModal')" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">+ Add Branch</button>
+    </div>
+  </div>
+  
+  <!-- Info Banner -->
+  <div class="glass-card" style="border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; background: rgba(79,142,247,0.07); border: 1px solid rgba(79,142,247,0.2);">
+    <div style="font-size: 20px;">🔐</div>
+    <div>
+      <div style="color: var(--text-primary); font-weight: 600; font-size: 13px;">Branch Login Auto-Creation</div>
+      <div style="color: var(--text-secondary); font-size: 12px; margin-top: 2px;">
+        Jab bhi aap naya branch add karte hain, automatically ek <strong>Branch Login ID</strong> create hoti hai.<br>
+        <strong>Login ID = Branch Code (lowercase)</strong> &nbsp;|&nbsp; <strong>Default Password = Branch Pincode</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass-card" style="border-radius: 12px; overflow: hidden; padding: 0;">
+    <div class="table-responsive">
+      <table class="data-table" id="branchTable" style="width: 100%; text-align: left; border-collapse: collapse;">
+        <thead>
+          <tr style="background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--glass-border);">
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Code</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Name</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Location</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">🔐 Login ID</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">🔑 Password</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Employees</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Status</th>
+            <th style="padding: 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in branches.items %}
+          <tr style="border-bottom: 1px solid var(--glass-border);" data-name="{{ b.name|lower }} {{ b.branch_code|lower }} {{ b.city|lower }}">
+            <td style="padding: 16px; font-family: monospace; color: #8b5cf6; font-weight: 600;">{{ b.branch_code }}</td>
+            <td style="padding: 16px; color: var(--text-primary); font-weight: 500;">{{ b.name }}</td>
+            <td style="padding: 16px; font-size: 13px; color: var(--text-secondary);">{{ b.city }}{% if b.city and b.state %}, {% endif %}{{ b.state }}{% if b.pincode %} – {{ b.pincode }}{% endif %}</td>
+            <td style="padding: 16px;">
+              <code style="background: rgba(79,142,247,0.1); color: #4f8ef7; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;" onclick="copyText('{{ b.branch_code|lower }}', this)" title="Click to copy">{{ b.branch_code|lower }}</code>
+            </td>
+            <td style="padding: 16px;">
+              {% if b.pincode %}
+              <code style="background: rgba(16,185,129,0.1); color: #10b981; padding: 3px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;" onclick="copyText('{{ b.pincode }}', this)" title="Click to copy">{{ b.pincode }}</code>
+              {% else %}
+              <code style="background: rgba(239,68,68,0.1); color: #ef4444; padding: 3px 8px; border-radius: 4px; font-size: 12px;">Branch@123</code>
+              {% endif %}
+            </td>
+            <td style="padding: 16px; font-size: 13px; color: var(--text-secondary);">{{ b.employee_count }}</td>
+            <td style="padding: 16px;">
+              {% if b.is_active %}
+              <span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981; padding: 4px 8px; border-radius: 4px; font-size: 11px;">Active</span>
+              {% else %}
+              <span class="badge" style="background: rgba(239,68,68,0.1); color: #ef4444; padding: 4px 8px; border-radius: 4px; font-size: 11px;">Inactive</span>
+              {% endif %}
+            </td>
+            <td style="padding: 16px; text-align: right;">
+              <button onclick="editBranch('{{ b.id }}', '{{ b.branch_code }}', '{{ b.name|e }}', '{{ b.city|e }}', '{{ b.state|e }}', '{{ b.address|e }}', '{{ b.phone|e }}', '{{ b.pincode|e }}', '{{ b.email|e }}')" class="btn btn-sm" style="background: rgba(79,142,247,0.1); color: #4f8ef7; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;">✏️ Edit</button>
+              <button onclick="changeBranchCreds('{{ b.id }}', '{{ b.name|e }}', '{{ b.branch_code|lower }}')" class="btn btn-sm" style="background: rgba(16,185,129,0.1); color: #10b981; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;">🔑 ID/Password</button>
+              <button onclick="deleteBranch('{{ b.id }}', '{{ b.name|e }}')" class="btn btn-sm" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Delete Branch & Login Accounts">🗑️ Delete</button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">No branches found. Add one to get started.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if branches.total > 0 %}
+    <div style="padding: 16px; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+      <div style="color: var(--text-muted); font-size: 12px;">Showing {{ branches.items|length }} of {{ branches.total }} results</div>
+      <div style="display: flex; gap: 8px;">
+        {% if branches.has_prev %}
+        <a href="{{ url_for('admin.branches', page=branches.prev_num) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Prev</a>
+        {% else %}
+        <button class="btn btn-sm" disabled style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; cursor: not-allowed; font-size: 13px;">Prev</button>
+        {% endif %}
+        
+        {% if branches.has_next %}
+        <a href="{{ url_for('admin.branches', page=branches.next_num) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Next</a>
+        {% else %}
+        <button class="btn btn-sm" disabled style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; cursor: not-allowed; font-size: 13px;">Next</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Add Branch Modal -->
+<div class="modal-overlay" id="addBranchModal">
+  <div class="modal" style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 24px; width: 540px; max-width: 95%; box-shadow: var(--shadow-glass); position: relative; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+      <h3 style="color: var(--text-primary); margin: 0; font-size: 18px;">➕ Add New Branch</h3>
+      <button onclick="hideAdminModal('addBranchModal')" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+    </div>
+    
+    <!-- Login Preview Box -->
+    <div id="loginPreview" style="display:none; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+      <div style="font-size: 11px; color: #10b981; font-weight: 600; margin-bottom: 6px; text-transform: uppercase;">🔐 Branch Login Credentials</div>
+      <div style="display: flex; gap: 20px;">
+        <div>
+          <div style="font-size: 10px; color: var(--text-muted);">Login ID</div>
+          <div id="previewLoginId" style="font-family: monospace; color: var(--text-primary); font-size: 14px; font-weight: 600;"></div>
+        </div>
+        <div>
+          <div style="font-size: 10px; color: var(--text-muted);">Password</div>
+          <div id="previewPassword" style="font-family: monospace; color: var(--text-primary); font-size: 14px; font-weight: 600;"></div>
+        </div>
+      </div>
+    </div>
+    
+    <form id="addBranchForm" onsubmit="submitBranch(event)">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Branch Code *</label>
+          <input type="text" name="branch_code" id="newBranchCode" required class="form-control" oninput="updateLoginPreview()" placeholder="e.g. JPS001" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-family: monospace; text-transform: uppercase;" box-sizing="border-box">
+        </div>
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Branch Name *</label>
+          <input type="text" name="name" required class="form-control" placeholder="e.g. Jaipur Branch" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+      </div>
+      
+      <!-- Custom Credentials Option -->
+      <div style="background: rgba(79,142,247,0.05); border: 1px solid rgba(79,142,247,0.2); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+        <div style="font-size: 12px; color: #4f8ef7; font-weight: 600; margin-bottom: 10px;">🔐 Custom Login ID & Password (Optional)</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">Custom Login ID</label>
+            <input type="text" name="custom_username" id="customUsername" oninput="updateLoginPreview()" placeholder="Default: branch_code" class="form-control" style="width: 100%; padding: 8px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 12px;" box-sizing="border-box">
+          </div>
+          <div>
+            <label style="display: block; color: var(--text-secondary); font-size: 11px; margin-bottom: 4px;">Custom Password</label>
+            <input type="password" name="custom_password" id="customPassword" oninput="updateLoginPreview()" placeholder="Default: pincode" class="form-control" style="width: 100%; padding: 8px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 12px;" box-sizing="border-box">
+          </div>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">City *</label>
+          <input type="text" name="city" required class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">State *</label>
+          <input type="text" name="state" required class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Phone</label>
+          <input type="tel" name="phone" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Pincode *</label>
+          <input type="text" name="pincode" id="newBranchPincode" class="form-control" oninput="updateLoginPreview()" placeholder="e.g. 302001" maxlength="8" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid rgba(16,185,129,0.4); color: var(--text-primary); border-radius: 6px; font-family: monospace;" box-sizing="border-box">
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Full Address</label>
+        <textarea name="address" rows="2" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; resize: none;"></textarea>
+      </div>
+      
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Email</label>
+        <input type="email" name="email" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" onclick="hideAdminModal('addBranchModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 6px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer;">Save Branch & Create Login</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Change Branch Credentials Modal -->
+<div class="modal-overlay" id="changeCredsModal">
+  <div class="modal" style="background: var(--bg-secondary); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; padding: 24px; width: 440px; max-width: 95%; box-shadow: var(--shadow-glass); position: relative;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+      <h3 style="color: var(--text-primary); margin: 0; font-size: 18px;">🔑 Change Branch Login Credentials</h3>
+      <button onclick="hideAdminModal('changeCredsModal')" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+    </div>
+    
+    <div style="margin-bottom: 16px;">
+      <span style="font-size: 12px; color: var(--text-muted);">Branch:</span>
+      <span id="credBranchNameTitle" style="font-size: 14px; font-weight: 700; color: #4f8ef7; margin-left: 6px;"></span>
+    </div>
+
+    <form id="changeCredsForm" onsubmit="submitChangeCreds(event)">
+      <input type="hidden" id="credBranchId">
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Branch Login ID (Username) *</label>
+        <input type="text" id="credUsername" name="username" required class="form-control" placeholder="e.g. jaipur_branch" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-family: monospace;" box-sizing="border-box">
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">New Password <span style="color: var(--text-muted); font-weight: 400;">(leave blank to keep unchanged)</span></label>
+        <input type="password" id="credPasswordInput" name="password" class="form-control" placeholder="Enter new password" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-family: monospace;" box-sizing="border-box">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" onclick="hideAdminModal('changeCredsModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 6px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;">Update Credentials</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Branch Modal -->
+<div class="modal-overlay" id="editBranchModal">
+  <div class="modal" style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 24px; width: 540px; max-width: 95%; box-shadow: var(--shadow-glass); position: relative; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+      <h3 style="color: var(--text-primary); margin: 0; font-size: 18px;">✏️ Edit Branch</h3>
+      <button onclick="hideAdminModal('editBranchModal')" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+    </div>
+    <form id="editBranchForm" onsubmit="submitEditBranch(event)">
+      <input type="hidden" id="editBranchId">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Branch Code *</label>
+          <input type="text" id="editBranchCode" name="branch_code" required class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-family: monospace;" box-sizing="border-box">
+        </div>
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Branch Name *</label>
+          <input type="text" id="editBranchName" name="name" required class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">City</label>
+          <input type="text" id="editBranchCity" name="city" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">State</label>
+          <input type="text" id="editBranchState" name="state" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Phone</label>
+          <input type="tel" id="editBranchPhone" name="phone" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+        <div>
+          <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Pincode <span style="color: #10b981; font-weight: 400;">(changes Password too)</span></label>
+          <input type="text" id="editBranchPincode" name="pincode" class="form-control" maxlength="8" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid rgba(16,185,129,0.3); color: var(--text-primary); border-radius: 6px; font-family: monospace;" box-sizing="border-box">
+        </div>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Address</label>
+        <textarea id="editBranchAddress" name="address" rows="2" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; resize: none;"></textarea>
+      </div>
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 6px;">Email</label>
+        <input type="email" id="editBranchEmail" name="email" class="form-control" style="width: 100%; padding: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" onclick="hideAdminModal('editBranchModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 6px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer;">Update Branch</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Success Credentials Modal (shown after add) -->
+<div class="modal-overlay" id="credentialsModal">
+  <div class="modal" style="background: var(--bg-secondary); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; padding: 28px; width: 420px; max-width: 95%; box-shadow: var(--shadow-glass); position: relative; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
+    <h3 style="color: var(--text-primary); margin: 0 0 6px 0; font-size: 20px;">Branch Created!</h3>
+    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 20px;">Save these login credentials for the branch:</p>
+    <div style="background: var(--bg-primary); border: 1px solid var(--glass-border); border-radius: 10px; padding: 20px; margin-bottom: 20px; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">Login ID</div>
+          <div id="credLoginId" style="font-family: monospace; color: #4f8ef7; font-size: 18px; font-weight: 700;"></div>
+        </div>
+        <button onclick="copyText(document.getElementById('credLoginId').textContent, this)" style="background: rgba(79,142,247,0.1); color: #4f8ef7; border: 1px solid rgba(79,142,247,0.3); padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 11px;">📋 Copy</button>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">Password</div>
+          <div id="credPassword" style="font-family: monospace; color: #10b981; font-size: 18px; font-weight: 700;"></div>
+        </div>
+        <button onclick="copyText(document.getElementById('credPassword').textContent, this)" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 11px;">📋 Copy</button>
+      </div>
+    </div>
+    <button onclick="hideAdminModal('credentialsModal'); window.location.reload();" class="btn btn-primary" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">✅ Got it, Close</button>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 24px; width: 400px; max-width: 90%; box-shadow: var(--shadow-glass); position: relative;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+      <h3 style="color: var(--text-primary); margin: 0; font-size: 18px;">Import Branches from Excel</h3>
+      <button onclick="hideAdminModal('importModal')" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+    </div>
+    
+    <form action="{{ url_for('admin.import_branches') }}" method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 8px;">Select Excel File (.xlsx)</label>
+        <input type="file" name="file" accept=".xlsx" required style="width: 100%; color: var(--text-primary);">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" onclick="hideAdminModal('importModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 6px; cursor: pointer;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer;">Upload & Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showAdminModal(id) {
+  document.getElementById(id)?.classList.add('active');
+}
+function hideAdminModal(id) {
+  if(!id) {
+    document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
+  } else {
+    document.getElementById(id)?.classList.remove('active');
+  }
+}
+
+function updateLoginPreview() {
+  const code = document.getElementById('newBranchCode').value.trim().toLowerCase();
+  const pin = document.getElementById('newBranchPincode').value.trim();
+  const preview = document.getElementById('loginPreview');
+  if (code) {
+    preview.style.display = 'block';
+    document.getElementById('previewLoginId').textContent = code;
+    document.getElementById('previewPassword').textContent = pin || 'Branch@123';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+function submitBranch(e) {
+  e.preventDefault();
+  const form = document.getElementById('addBranchForm');
+  const formData = new FormData(form);
+  
+  fetch("{{ url_for('admin.add_branch') }}", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      hideAdminModal('addBranchModal');
+      form.reset();
+      document.getElementById('loginPreview').style.display = 'none';
+      // Show credentials modal
+      document.getElementById('credLoginId').textContent = res.login_id;
+      document.getElementById('credPassword').textContent = res.login_password;
+      showAdminModal('credentialsModal');
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("An error occurred");
+  });
+}
+
+function editBranch(id, code, name, city, state, address, phone, pincode, email) {
+  document.getElementById('editBranchId').value = id;
+  document.getElementById('editBranchCode').value = code;
+  document.getElementById('editBranchName').value = name;
+  document.getElementById('editBranchCity').value = city;
+  document.getElementById('editBranchState').value = state;
+  document.getElementById('editBranchAddress').value = address;
+  document.getElementById('editBranchPhone').value = phone;
+  document.getElementById('editBranchPincode').value = pincode;
+  document.getElementById('editBranchEmail').value = email;
+  showAdminModal('editBranchModal');
+}
+
+function submitEditBranch(e) {
+  e.preventDefault();
+  const id = document.getElementById('editBranchId').value;
+  const form = document.getElementById('editBranchForm');
+  const formData = new FormData(form);
+  
+  fetch(`/admin/branches/edit/${id}`, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      hideAdminModal('editBranchModal');
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function changeBranchCreds(id, name, username) {
+  document.getElementById('credBranchId').value = id;
+  document.getElementById('credBranchNameTitle').textContent = name;
+  document.getElementById('credUsername').value = username;
+  document.getElementById('credPasswordInput').value = '';
+  showAdminModal('changeCredsModal');
+}
+
+function submitChangeCreds(e) {
+  e.preventDefault();
+  const id = document.getElementById('credBranchId').value;
+  const form = document.getElementById('changeCredsForm');
+  const formData = new FormData(form);
+  
+  fetch(`/admin/branches/credentials/${id}`, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      hideAdminModal('changeCredsModal');
+      alert("✅ " + res.message);
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function deleteBranch(id, name) {
+  if(!confirm(`⚠️ Are you sure you want to permanently delete Branch "${name}" and all its associated login accounts? This action cannot be undone.`)) return;
+  fetch(`/admin/branches/delete/${id}`, { method: "POST" })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      alert("🗑️ " + res.message);
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+function filterBranches() {
+  const q = document.getElementById('branchSearch').value.toLowerCase();
+  document.querySelectorAll('#branchTable tbody tr[data-name]').forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

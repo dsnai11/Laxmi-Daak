@@ -1,0 +1,582 @@
+{% extends "base.html" %}
+
+{% block title %}Pushpak Courier Tracking | Laxmi Daak{% endblock %}
+{% block page_title %}Pushpak Live Track{% endblock %}
+
+{% block content %}
+<style>
+/* ===== Pushpak Track Page Styles ===== */
+.pk-timeline {
+  position: relative;
+  padding-left: 32px;
+}
+.pk-timeline::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #f97316, rgba(249,115,22,0.15));
+  border-radius: 2px;
+}
+.pk-timeline-item {
+  position: relative;
+  margin-bottom: 18px;
+}
+.pk-timeline-item:last-child {
+  margin-bottom: 0;
+}
+.pk-dot {
+  position: absolute;
+  left: -26px;
+  top: 16px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f97316;
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.25);
+  z-index: 1;
+}
+.pk-dot.delivered {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.25);
+}
+.pk-dot.returned {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.25);
+}
+.pk-dot.received {
+  background: #4f8ef7;
+  box-shadow: 0 0 0 3px rgba(79,142,247,0.25);
+}
+.pk-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  transition: box-shadow 0.2s;
+}
+.pk-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.pk-card.first-event {
+  border-left: 3px solid #10b981;
+}
+.pk-card.dispatched-event {
+  border-left: 3px solid #f97316;
+}
+.pk-card.delivered-event {
+  border-left: 3px solid #10b981;
+}
+.pk-card.returned-event {
+  border-left: 3px solid #ef4444;
+}
+.pk-step-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.pk-step-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pk-step-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: monospace;
+  background: var(--bg-card);
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--glass-border);
+  white-space: nowrap;
+}
+.pk-location {
+  font-size: 13px;
+  color: #4f8ef7;
+  font-weight: 600;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pk-remark {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  font-style: italic;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  border-left: 2px solid var(--glass-border);
+}
+
+/* Hierarchy Overview */
+.pk-hier-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+.pk-hier-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 110px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  position: relative;
+  text-align: center;
+}
+.pk-hier-node.active-node {
+  border-color: rgba(249,115,22,0.5);
+  background: rgba(249,115,22,0.07);
+}
+.pk-hier-arrow {
+  color: #f97316;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+.pk-hier-icon { font-size: 18px; margin-bottom: 4px; }
+.pk-hier-name { font-weight: 700; color: var(--text-primary); font-size: 11px; line-height: 1.3; }
+.pk-hier-label { font-size: 9px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-top: 3px; }
+.pk-hier-date { font-size: 9px; color: var(--text-secondary); margin-top: 2px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="animate-fade-in" style="max-width: 900px; margin: 0 auto;">
+  
+  <!-- Header Card -->
+  <div class="glass-card" style="padding: 28px; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--glass-border); position: relative; overflow: hidden;">
+    <div style="position: absolute; top: -40px; right: -40px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%); pointer-events: none;"></div>
+    
+    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 18px;">
+      <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #f97316, #ea580c); display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; box-shadow: 0 8px 20px rgba(249,115,22,0.3); flex-shrink: 0;">
+        🚚
+      </div>
+      <div>
+        <h2 style="margin: 0; color: var(--text-primary); font-size: 22px; font-weight: 800;">Pushpak Courier Direct Tracking</h2>
+        <p style="margin: 4px 0 0; color: var(--text-secondary); font-size: 13px;">Koi bhi Pushpak Docket number darj karein — chahe Laxmi Daak se gaya ho ya seedha Pushpak counter se.</p>
+      </div>
+    </div>
+    
+    <!-- Search Form -->
+    <form id="pushpakTrackForm" onsubmit="handlePushpakSubmit(event)" style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 250px; position: relative;">
+        <input type="text" id="docketInput" name="docket" placeholder="Pushpak Docket / AWB Number darjein (e.g. PRIME87659)..." value="{{ docket or '' }}" class="form-control" style="width: 100%; padding: 14px 16px; background: var(--bg-primary); border: 2px solid var(--glass-border); color: var(--text-primary); border-radius: 10px; font-size: 15px; font-family: monospace; letter-spacing: 1px; transition: border-color 0.3s; box-sizing: border-box;" required autofocus autocomplete="off">
+      </div>
+      <button type="submit" id="trackSubmitBtn" style="background: linear-gradient(135deg, #f97316, #ea580c); border: none; color: white; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(249,115,22,0.3); transition: transform 0.2s; white-space: nowrap;">
+        📡 Track Live
+      </button>
+    </form>
+    
+  </div>
+
+  <!-- Loading State -->
+  <div id="pushpakLoadingState" style="display: none; text-align: center; padding: 60px 20px;">
+    <div style="font-size: 42px; animation: spin 1.2s infinite linear; display: inline-block;">⏳</div>
+    <h4 style="margin: 14px 0 6px; color: var(--text-primary); font-size: 16px;">Pushpak Courier Server se connect ho raha hai...</h4>
+    <p style="color: var(--text-muted); font-size: 13px; margin: 0;">Real-time transit checkpoints aur delivery status fetch kar raha hai</p>
+  </div>
+
+  <!-- Error State -->
+  <div id="pushpakErrorState" style="display: none; text-align: center; padding: 40px 20px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 16px; margin-bottom: 24px;">
+    <div style="font-size: 44px; margin-bottom: 12px;">❌</div>
+    <h3 style="color: #ef4444; margin: 0 0 8px 0; font-size: 18px;">Consignment Nahi Mila</h3>
+    <p id="pushpakErrorMessage" style="color: var(--text-primary); margin: 0 0 12px; font-size: 14px;"></p>
+    <div style="font-size: 12px; color: var(--text-secondary);">Tip: Pushpak booking slip se Docket / AWB number check karein.</div>
+  </div>
+
+  <!-- ===== Result Container ===== -->
+  <div id="pushpakResultContainer" style="display: none;">
+    
+    <!-- Top Summary Card -->
+    <div class="glass-card" style="padding: 24px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; margin-bottom: 18px;">
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 4px;">Pushpak Docket / AWB No.</div>
+          <div id="resultDocketNo" style="font-family: monospace; font-size: 26px; font-weight: 800; color: #f97316; letter-spacing: 2px;">—</div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <span id="resultCategoryBadge" style="background: rgba(79,142,247,0.15); color: #4f8ef7; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; display: none;"></span>
+          <span id="resultStatusBadge" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700;"></span>
+        </div>
+      </div>
+
+      <!-- Sender & Recipient -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div style="background: var(--bg-primary); padding: 14px 16px; border-radius: 10px; border: 1px solid var(--glass-border);">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+            <span style="font-size: 15px;">📤</span>
+            <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Sender</span>
+          </div>
+          <div id="resultSenderName" style="font-weight: 700; color: var(--text-primary); font-size: 14px; margin-bottom: 4px;">—</div>
+          <div id="resultSenderAddress" style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;"></div>
+          <div id="resultSenderMobile" style="font-size: 12px; color: #10b981; margin-top: 4px; font-weight: 600;"></div>
+        </div>
+        <div style="background: var(--bg-primary); padding: 14px 16px; border-radius: 10px; border: 1px solid var(--glass-border);">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+            <span style="font-size: 15px;">📥</span>
+            <span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Recipient</span>
+          </div>
+          <div id="resultRecipientName" style="font-weight: 700; color: var(--text-primary); font-size: 14px; margin-bottom: 4px;">—</div>
+          <div id="resultRecipientAddress" style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;"></div>
+          <div id="resultRecipientMobile" style="font-size: 12px; color: #10b981; margin-top: 4px; font-weight: 600;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transit Path Hierarchy Overview -->
+    <div id="hierarchySection" class="glass-card" style="padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+      <h3 style="margin: 0 0 16px 0; color: var(--text-primary); font-size: 16px; display: flex; align-items: center; gap: 8px;">
+        <span>📍</span> Transit Path — Hierarchy Overview
+      </h3>
+      <div id="hierarchyContainer" class="pk-hier-container"></div>
+    </div>
+
+    <!-- Tracking History Timeline -->
+    <div class="glass-card" style="padding: 20px 24px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--glass-border);">
+      <h3 style="margin: 0 0 20px 0; color: var(--text-primary); font-size: 16px; display: flex; align-items: center; gap: 8px;">
+        <span>📋</span> Detailed Tracking History
+      </h3>
+      <div id="timelineEventsList" class="pk-timeline"></div>
+    </div>
+
+    <!-- POD Card -->
+    <div id="podCard" class="glass-card" style="padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(16,185,129,0.35); background: rgba(16,185,129,0.05); display: none;">
+      <h3 style="margin: 0 0 16px 0; color: #10b981; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+        <span>✅</span> Proof of Delivery (POD)
+      </h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+        <div style="background: var(--bg-primary); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--glass-border);">
+          <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Delivered To</div>
+          <div id="podDeliveredTo" style="font-weight: 700; color: var(--text-primary); font-size: 13px;">—</div>
+        </div>
+        <div style="background: var(--bg-primary); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--glass-border);">
+          <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Relation</div>
+          <div id="podRelation" style="font-weight: 700; color: var(--text-primary); font-size: 13px;">—</div>
+        </div>
+        <div style="background: var(--bg-primary); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--glass-border);">
+          <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Date & Time</div>
+          <div id="podDate" style="font-weight: 700; color: var(--text-primary); font-size: 13px;">—</div>
+        </div>
+      </div>
+      <div id="podImageContainer" style="display: none; margin-top: 14px;">
+        <a id="podImageLink" href="#" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 13px; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+          🖼️ POD Document Dekhen
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /result container -->
+
+</div>
+
+<script>
+// ===== Helper: Format date YYYY-MM-DD → DD/MM/YYYY =====
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  // If already has / assume it's fine
+  if (dateStr.indexOf('/') !== -1) return dateStr;
+  var parts = dateStr.split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return dateStr;
+}
+
+// ===== Helper: Format time HH:MM:SS → HH:MM =====
+function fmtTime(timeStr) {
+  if (!timeStr) return '';
+  var parts = timeStr.split(':');
+  if (parts.length >= 2) {
+    var h = parseInt(parts[0], 10);
+    var m = parts[1];
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return h + ':' + m + ' ' + ampm;
+  }
+  return timeStr;
+}
+
+// ===== IMR Type → Event card class =====
+function getEventClass(type) {
+  if (type === '5') return 'delivered-event';
+  if (type === '4') return 'returned-event';
+  if (type === '1') return 'first-event';
+  if (type === '2') return 'dispatched-event';
+  return '';
+}
+
+// ===== IMR Type → Dot class =====
+function getDotClass(type) {
+  if (type === '5') return 'delivered';
+  if (type === '4') return 'returned';
+  if (type === '1') return 'received';
+  return '';
+}
+
+// ===== Form Submit Handler =====
+function handlePushpakSubmit(e) {
+  e.preventDefault();
+  var docket = (document.getElementById('docketInput').value || '').trim().toUpperCase();
+  if (!docket) return;
+  trackPushpak(docket);
+}
+
+// ===== Main Tracking Function =====
+function trackPushpak(docket) {
+  var loading    = document.getElementById('pushpakLoadingState');
+  var errorBox   = document.getElementById('pushpakErrorState');
+  var errorMsg   = document.getElementById('pushpakErrorMessage');
+  var resultCont = document.getElementById('pushpakResultContainer');
+  var submitBtn  = document.getElementById('trackSubmitBtn');
+
+  if (loading)    loading.style.display    = 'block';
+  if (errorBox)   errorBox.style.display   = 'none';
+  if (resultCont) resultCont.style.display = 'none';
+  if (submitBtn)  { submitBtn.disabled = true; submitBtn.innerHTML = '⏳ Tracking...'; }
+
+  try {
+    window.history.replaceState({}, '', window.location.pathname + '?docket=' + encodeURIComponent(docket));
+  } catch(e) {}
+
+  fetch('/api/pushpak/track/' + encodeURIComponent(docket))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (loading)   loading.style.display   = 'none';
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '📡 Track Live'; }
+
+      if (!data.success) {
+        if (errorBox)  errorBox.style.display  = 'block';
+        if (errorMsg)  errorMsg.textContent    = data.message || 'Consignment not found on Pushpak.';
+        return;
+      }
+
+      renderPushpakData(docket, data);
+    })
+    .catch(function(err) {
+      if (loading)   loading.style.display   = 'none';
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '📡 Track Live'; }
+      if (errorBox)  errorBox.style.display  = 'block';
+      if (errorMsg)  errorMsg.textContent    = 'Pushpak server se connect nahi ho saka: ' + err.message;
+    });
+}
+
+// ===== Render Full Result =====
+function renderPushpakData(docket, data) {
+  var container = document.getElementById('pushpakResultContainer');
+  if (!container) return;
+
+  // -- Docket No --
+  document.getElementById('resultDocketNo').textContent = docket;
+
+  // -- Category Badge --
+  var catBadge = document.getElementById('resultCategoryBadge');
+  if (data.category) {
+    catBadge.textContent = data.category;
+    catBadge.style.display = 'inline-block';
+  } else {
+    catBadge.style.display = 'none';
+  }
+
+  // -- Sender --
+  var s = data.sender || {};
+  document.getElementById('resultSenderName').textContent    = s.name    || '—';
+  document.getElementById('resultSenderAddress').textContent = (s.address || '').trim();
+  document.getElementById('resultSenderMobile').textContent  = s.mobile  ? ('📞 ' + s.mobile) : '';
+
+  // -- Recipient --
+  var r = data.recipient || {};
+  document.getElementById('resultRecipientName').textContent    = r.name    || '—';
+  document.getElementById('resultRecipientAddress').textContent = (r.address || '').trim();
+  document.getElementById('resultRecipientMobile').textContent  = r.mobile  ? ('📞 ' + r.mobile) : '';
+
+  // -- Status Badge --
+  var statusBadge = document.getElementById('resultStatusBadge');
+  var latestText  = '🚚 In Transit';
+  var badgeBg     = 'rgba(249,115,22,0.15)';
+  var badgeColor  = '#f97316';
+
+  var hist = data.transit_history || [];
+  if (data.pod_data && data.pod_data.delivered_to) {
+    latestText  = '✅ Delivered';
+    badgeBg     = 'rgba(16,185,129,0.15)';
+    badgeColor  = '#10b981';
+  } else if (hist.length > 0) {
+    // Find the most recent event (first in array from API, reversed from oldest→newest)
+    var lastEvent = hist[0];
+    if (lastEvent.type === '5') {
+      latestText = '✅ Delivered'; badgeBg = 'rgba(16,185,129,0.15)'; badgeColor = '#10b981';
+    } else if (lastEvent.type === '4') {
+      latestText = '↩️ Returned'; badgeBg = 'rgba(239,68,68,0.15)'; badgeColor = '#ef4444';
+    } else if (lastEvent.type === '2') {
+      latestText = '🚚 Dispatched'; badgeBg = 'rgba(249,115,22,0.15)'; badgeColor = '#f97316';
+    } else if (lastEvent.type === '1') {
+      latestText = '📦 Received'; badgeBg = 'rgba(79,142,247,0.15)'; badgeColor = '#4f8ef7';
+    } else if (lastEvent.type === '3') {
+      latestText = '📍 Out for Delivery'; badgeBg = 'rgba(168,85,247,0.15)'; badgeColor = '#a855f7';
+    }
+  }
+  statusBadge.textContent         = latestText;
+  statusBadge.style.background    = badgeBg;
+  statusBadge.style.color         = badgeColor;
+  statusBadge.style.borderRadius  = '8px';
+  statusBadge.style.padding       = '8px 16px';
+  statusBadge.style.fontWeight    = '700';
+  statusBadge.style.fontSize      = '13px';
+
+  // ==================== HIERARCHY OVERVIEW ====================
+  var hierContainer = document.getElementById('hierarchyContainer');
+  var hierSection   = document.getElementById('hierarchySection');
+  hierContainer.innerHTML = '';
+
+  // Show hierarchy only if we have transit events
+  // Display in chronological order: reverse transit_history (oldest first)
+  var chronoHist = hist.slice().reverse();
+
+  if (chronoHist.length > 0) {
+    hierSection.style.display = 'block';
+    chronoHist.forEach(function(event, idx) {
+      var isLast = (idx === chronoHist.length - 1);
+
+      var nodeIcon = event.type_icon || '📋';
+      var nodeName = event.location || 'Unknown';
+      var nodeLabel = event.type_label || 'Transit';
+      var nodeDate = event.date ? fmtDate(event.date) : '';
+
+      var node = document.createElement('div');
+      node.className = 'pk-hier-node' + (isLast ? ' active-node' : '');
+      node.innerHTML =
+        '<div class="pk-hier-icon">' + nodeIcon + '</div>' +
+        '<div class="pk-hier-name">' + nodeName + '</div>' +
+        '<div class="pk-hier-label">' + nodeLabel + '</div>' +
+        (nodeDate ? '<div class="pk-hier-date">' + nodeDate + '</div>' : '');
+      hierContainer.appendChild(node);
+
+      if (!isLast) {
+        var arrow = document.createElement('div');
+        arrow.className = 'pk-hier-arrow';
+        arrow.innerHTML = '➔';
+        hierContainer.appendChild(arrow);
+      }
+    });
+  } else {
+    hierSection.style.display = 'none';
+  }
+
+  // ==================== TIMELINE EVENTS ====================
+  var timelineList = document.getElementById('timelineEventsList');
+  timelineList.innerHTML = '';
+
+  if (hist.length > 0) {
+    // Show newest event first (API returns newest first already)
+    hist.forEach(function(event, idx) {
+      var isFirst = (idx === 0);
+      var dotClass   = getDotClass(event.type);
+      var cardClass  = getEventClass(event.type);
+
+      var itemDiv = document.createElement('div');
+      itemDiv.className = 'pk-timeline-item';
+
+      // Dot
+      var dot = document.createElement('div');
+      dot.className = 'pk-dot ' + dotClass;
+      itemDiv.appendChild(dot);
+
+      // Card
+      var card = document.createElement('div');
+      card.className = 'pk-card ' + cardClass;
+
+      // Header Row: icon+label | date+time
+      var formattedDate = fmtDate(event.date);
+      var formattedTime = fmtTime(event.time);
+      var dateTimeStr   = (formattedDate ? formattedDate : '') + (formattedTime ? ' &nbsp;' + formattedTime : '');
+
+      var header = '<div class="pk-step-row">' +
+        '<span class="pk-step-title">' +
+          '<span style="font-size:18px;">' + (event.type_icon || '📋') + '</span>' +
+          '<span>' + (event.type_label || 'Transit Event') + '</span>' +
+        '</span>' +
+        (dateTimeStr ? '<span class="pk-step-time">' + dateTimeStr + '</span>' : '') +
+      '</div>';
+
+      // Location
+      var locationHtml = '';
+      if (event.location) {
+        locationHtml = '<div class="pk-location"><span>🏭</span><span>' + event.location + '</span></div>';
+      }
+
+      // Remark
+      var remarkHtml = '';
+      if (event.remarks && event.remarks.trim()) {
+        remarkHtml = '<div class="pk-remark">💬 ' + event.remarks + '</div>';
+      }
+
+      card.innerHTML = header + locationHtml + remarkHtml;
+      itemDiv.appendChild(card);
+      timelineList.appendChild(itemDiv);
+    });
+  } else {
+    timelineList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">Koi transit checkpoint record nahi mila.</div>';
+  }
+
+  // ==================== POD SECTION ====================
+  var podCard = document.getElementById('podCard');
+  if (data.pod_data && (data.pod_data.delivered_to || data.pod_data.date)) {
+    podCard.style.display = 'block';
+    document.getElementById('podDeliveredTo').textContent = data.pod_data.delivered_to || '—';
+    document.getElementById('podRelation').textContent    = data.pod_data.relation     || 'Direct';
+
+    // Format POD date
+    var podDateStr = data.pod_data.date || '';
+    if (podDateStr && podDateStr.indexOf(' ') !== -1) {
+      var pdParts   = podDateStr.split(' ');
+      document.getElementById('podDate').textContent = fmtDate(pdParts[0]) + ' ' + fmtTime(pdParts[1]);
+    } else {
+      document.getElementById('podDate').textContent = fmtDate(podDateStr);
+    }
+
+    var podImgContainer = document.getElementById('podImageContainer');
+    var podImgLink      = document.getElementById('podImageLink');
+    if (data.pod_data.filename) {
+      podImgContainer.style.display = 'block';
+      podImgLink.href = 'https://www.pushpakcourier.net/Upload_PODScan/POD/' + data.pod_data.filename;
+    } else {
+      podImgContainer.style.display = 'none';
+    }
+  } else {
+    podCard.style.display = 'none';
+  }
+
+  // Show result
+  container.style.display = 'block';
+  setTimeout(function() {
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+// ===== On Page Load =====
+document.addEventListener('DOMContentLoaded', function() {
+  // Auto-track if docket param in URL
+  var urlParams = new URLSearchParams(window.location.search);
+  var initialDocket = urlParams.get('docket');
+  if (initialDocket) {
+    document.getElementById('docketInput').value = initialDocket.toUpperCase();
+    trackPushpak(initialDocket.toUpperCase());
+  }
+});
+</script>
+{% endblock %}

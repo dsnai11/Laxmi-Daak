@@ -1,0 +1,15 @@
+Flask==3.0.3
+Flask-Login==0.6.3
+Flask-SocketIO==5.3.6
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.36
+bcrypt==4.2.1
+python-dotenv==1.0.1
+qrcode[pil]==7.4.2
+Pillow==11.1.0
+openpyxl==3.1.4
+reportlab==4.2.5
+python-dateutil==2.9.0.post0
+Flask-WTF==1.2.1
+gunicorn==22.0.0
+requests==2.32.3

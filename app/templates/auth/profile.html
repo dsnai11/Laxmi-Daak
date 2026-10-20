@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+{% block breadcrumb %}Account / Profile{% endblock %}
+
+{% block content %}
+<div class="profile-container" style="max-width: 800px; margin: 0 auto;">
+  
+  <!-- Profile Overview Card -->
+  <div class="glass-card animate-slide-up" style="padding: 24px; border-radius: 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; border: 1px solid rgba(79, 142, 247, 0.25); background: var(--bg-card);">
+    <div style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #4f8ef7, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: white; box-shadow: 0 8px 20px rgba(79,142,247,0.3);">
+      {{ current_user.name[0].upper() }}
+    </div>
+    <div style="flex: 1;">
+      <h2 style="margin: 0 0 6px 0; font-size: 22px; font-weight: 700; color: var(--text-primary);">{{ current_user.name }}</h2>
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <span class="badge" style="background: rgba(79, 142, 247, 0.15); color: #4f8ef7; border: 1px solid rgba(79,142,247,0.3); font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 600;">
+          👤 {{ current_user.role.title() }}
+        </span>
+        {% if current_user.branch_name %}
+        <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3); font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 600;">
+          🏢 {{ current_user.branch_name }}
+        </span>
+        {% else %}
+        <span class="badge" style="background: rgba(34, 211, 238, 0.15); color: #22d3ee; border: 1px solid rgba(34,211,238,0.3); font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 600;">
+          🌐 Global Access
+        </span>
+        {% endif %}
+        <span style="font-size: 13px; color: var(--text-muted);">Username: <strong style="color: var(--text-primary);">@{{ current_user.username }}</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Edit Form -->
+  <form method="POST" action="{{ url_for('auth.profile') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="glass-card animate-slide-up" style="padding: 28px; border-radius: 16px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <span>📝</span> Personal Details
+      </h3>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; font-weight: 500;">Full Name <span style="color: #ef4444;">*</span></label>
+          <input type="text" name="name" value="{{ current_user.name }}" required class="form-control" style="width: 100%; padding: 11px 14px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14px;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; font-weight: 500;">Username</label>
+          <input type="text" value="{{ current_user.username }}" disabled class="form-control" style="width: 100%; padding: 11px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); color: var(--text-muted); border-radius: 8px; font-size: 14px; cursor: not-allowed;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; font-weight: 500;">Email Address <span style="color: #4f8ef7; font-size: 11px;">(System Admin / Notifications)</span></label>
+          <input type="email" name="email" value="{{ current_user.email or '' }}" placeholder="e.g. admin@lifc.in" class="form-control" style="width: 100%; padding: 11px 14px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14px;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; font-weight: 500;">Phone Number</label>
+          <input type="tel" name="phone" value="{{ current_user.phone or '' }}" placeholder="e.g. 9876543210" class="form-control" style="width: 100%; padding: 11px 14px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Security & Password Card -->
+    <div class="glass-card animate-slide-up" style="padding: 28px; border-radius: 16px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <span>🔒</span> Change Password <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">(Leave blank to keep current password)</span>
+      </h3>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; font-weight: 500;">New Password</label>
+          <input type="password" name="new_password" placeholder="••••••••" class="form-control" style="width: 100%; padding: 11px 14px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14px;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; font-weight: 500;">Confirm New Password</label>
+          <input type="password" name="confirm_password" placeholder="••••••••" class="form-control" style="width: 100%; padding: 11px 14px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Submit Action -->
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; padding: 12px 32px; font-size: 15px; font-weight: 600; border-radius: 8px; color: white; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(79, 142, 247, 0.3);">
+        💾 Save Profile Changes
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

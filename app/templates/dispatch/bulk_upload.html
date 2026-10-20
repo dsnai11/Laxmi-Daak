@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Upload Dispatches{% endblock %}
+{% block page_title %}📤 Bulk Dispatch{% endblock %}
+{% block breadcrumb %}Dispatch / Bulk Upload{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in" style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Header -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="margin:0; color:var(--text-primary); font-size:20px; display:flex; align-items:center; gap:10px;">
+        📤 Bulk Dispatch Upload
+      </h2>
+      <p style="margin:6px 0 0; color:var(--text-muted); font-size:13px;">Upload multiple parcel dispatches at once using an Excel spreadsheet.</p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="{{ url_for('dispatch.bulk_print_labels') }}" target="_blank"
+         class="btn btn-success"
+         style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; padding:10px 20px;">
+        🖨️ Print Last Batch Labels
+      </a>
+      <a href="{{ url_for('dispatch.download_bulk_template') }}" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+        📥 Download Template Excel
+      </a>
+    </div>
+  </div>
+
+
+  {% if errors %}
+  <!-- Validation Errors Box -->
+  <div class="glass-card" style="border: 1px solid var(--accent-red); background: rgba(239, 68, 68, 0.05); padding: 20px; border-radius: 12px; margin-bottom: 24px; animation: slideInUp 0.3s ease-out;">
+    <h3 style="color: var(--accent-red); font-size: 16px; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+      <span>⚠</span> Validation Errors Found
+    </h3>
+    <p style="color: var(--text-secondary); font-size: 13px; margin: 4px 0 14px;">The upload was cancelled because some rows contain invalid or missing data. Please fix these in your Excel sheet and try again.</p>
+    <div style="background: rgba(10, 15, 30, 0.4); border-radius: 8px; padding: 12px 16px; max-height: 250px; overflow-y: auto; border: 1px solid rgba(239,68,68,0.15);">
+      <ul style="margin: 0; padding-left: 20px; font-family: monospace; font-size: 12px; color: var(--text-primary); line-height: 1.8;">
+        {% for err in errors %}
+        <li style="color: #fca5a5;">{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Upload Card -->
+  <div class="glass-card" style="padding: 30px; border-radius: 16px; margin-bottom: 30px;">
+    <form method="POST" enctype="multipart/form-data" id="bulkUploadForm">
+      <!-- CSRF Token -->
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Drag & Drop Area -->
+      <div id="dropzone" onclick="document.getElementById('fileInput').click();"
+           style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 40px 20px; text-align: center; background: rgba(255, 255, 255, 0.01); cursor: pointer; transition: var(--transition); margin-bottom: 24px;"
+           onmouseover="this.style.borderColor='var(--accent-blue)'; this.style.backgroundColor='rgba(79, 142, 247, 0.03)'"
+           onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.15)'; this.style.backgroundColor='rgba(255, 255, 255, 0.01)'">
+        
+        <div style="font-size: 48px; margin-bottom: 12px; filter: drop-shadow(0 0 10px rgba(79, 142, 247, 0.2));">📊</div>
+        <h4 style="margin: 0 0 8px; color: var(--text-primary); font-size: 16px;">Drag & Drop Excel file here or click to browse</h4>
+        <p style="margin: 0; color: var(--text-muted); font-size: 12px;">Supports Excel formats (.xlsx) only</p>
+        
+        <input type="file" name="file" id="fileInput" accept=".xlsx" style="display: none;" required>
+        
+        <div id="selectedFileInfo" style="margin-top: 16px; display: none;">
+          <span style="background: rgba(79, 142, 247, 0.15); color: var(--accent-blue); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(79, 142, 247, 0.3);">
+            📎 <span id="fileNameSpan">filename.xlsx</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <a href="{{ url_for('dispatch.dispatch_list') }}" class="btn btn-ghost" style="padding: 10px 24px; text-decoration: none;">Cancel</a>
+        <button type="submit" class="btn btn-primary" style="padding: 10px 28px; font-weight: 700; cursor: pointer;">🚀 Upload & Dispatch</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Instruction Details Card -->
+  <div class="glass-card" style="padding: 24px; border-radius: 12px;">
+    <h3 style="margin-top: 0; color: var(--text-primary); font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+      <span>📖</span> How to use Bulk Dispatch?
+    </h3>
+    <ol style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+      <li style="margin-bottom: 8px;">Click on the <strong>Download Template Excel</strong> button above to download the pre-formatted template spreadsheet.</li>
+      <li style="margin-bottom: 8px;">Fill in the spreadsheet rows. Column headers marked with <strong>(Required)</strong> in the template instructions are mandatory:
+        <ul style="margin: 6px 0; padding-left: 20px; color: var(--text-muted);">
+          <li><strong>Sender Name</strong>, <strong>Receiver Name</strong>, <strong>Receiver Email</strong>, <strong>Item Description</strong></li>
+          <li><strong>Receiver Branch Code</strong>: Must match a valid code (e.g. <code>JP</code>, <code>DL</code>).</li>
+        </ul>
+      </li>
+      <li style="margin-bottom: 8px;">Ensure numeric columns like <strong>Weight (kg)</strong> contain only numbers (e.g. <code>1.5</code>) and no letters.</li>
+      <li style="margin-bottom: 8px;">Save the sheet as an Excel file (<code>.xlsx</code>), upload it here, and click <strong>Upload & Dispatch</strong>. System will automatically generate QR labels, record dispatches, and alert receivers.</li>
+    </ol>
+  </div>
+
+</div>
+
+<script>
+function initBulkUpload() {
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileInfo = document.getElementById('selectedFileInfo');
+  const fileNameSpan = document.getElementById('fileNameSpan');
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener('click', (e) => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+      handleFileSelect();
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = 'var(--accent-blue)';
+      dropzone.style.backgroundColor = 'rgba(79, 142, 247, 0.05)';
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+      dropzone.style.backgroundColor = 'rgba(255, 255, 255, 0.01)';
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+      dropzone.style.backgroundColor = 'rgba(255, 255, 255, 0.01)';
+      
+      if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect();
+      }
+    });
+  }
+
+  function handleFileSelect() {
+    if (fileInput && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      if (fileNameSpan) fileNameSpan.textContent = file.name;
+      if (fileInfo) fileInfo.style.display = 'block';
+    } else {
+      if (fileInfo) fileInfo.style.display = 'none';
+    }
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initBulkUpload);
+} else {
+  initBulkUpload();
+}
+</script>
+{% endblock %}

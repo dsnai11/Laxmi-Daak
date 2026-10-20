@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Billing & Pricing Configurations{% endblock %}
+{% block page_title %}💵 Billing Settings{% endblock %}
+{% block breadcrumb %}Administration / Billing Configurations{% endblock %}
+
+{% block content %}
+<div class="admin-container animate-fade-in" style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Main Info Card -->
+  <div class="glass-card" style="padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid var(--accent-green);">
+    <h3 style="margin-top: 0; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+      <span>ℹ️</span> Pricing Policy & Configuration
+    </h3>
+    <p style="color: var(--text-secondary); font-size: 14px; margin: 0 0 12px 0;">
+      These billing configurations govern the live calculated prices shown during new dispatch creation. Charges are computed as follows:
+    </p>
+    <div style="background: var(--bg-primary); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--glass-border); font-family: monospace; font-size: 13px; color: var(--accent-green);">
+      Estimated Bill = Base Price + (Package Weight in kg × Per Kg Rate)
+    </div>
+  </div>
+
+  <!-- State Dropdown Selector Card -->
+  <div class="glass-card" style="padding: 16px 20px; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 24px;">📍</span>
+      <div>
+        <h4 style="margin: 0; color: var(--text-primary); font-size: 14px; font-weight: 600;">State-Wise Pricing Filter</h4>
+        <p style="margin: 0; color: var(--text-secondary); font-size: 12px;">Select a state to customize state-specific dispatch rates</p>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <label style="color: var(--text-secondary); font-size: 13px; font-weight: 500;">Select State:</label>
+        <select id="stateFilterSelect" class="form-control" style="padding: 8px 16px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 14px; font-weight: 600; width: 220px;" onchange="changeBillingState(this.value)">
+          {% for st in states %}
+          <option value="{{ st }}" {% if selected_state == st %}selected{% endif %}>
+            {% if st == 'Default' %}🌍 Default (All States){% else %}🏢 {{ st }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if current_user.role == 'superadmin' %}
+      <button type="button" onclick="showAdminModal('addStateModal')" class="btn btn-ghost" style="padding: 8px 16px; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text-primary); font-size: 13px; display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+        ➕ Add State
+      </button>
+      {% if selected_state != 'Default' %}
+      <form method="POST" action="{{ url_for('admin.delete_billing_state', state_name=selected_state) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete all billing rates for state: {{ selected_state }}?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 8px 16px; border-radius: 6px; font-size: 13px; display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+          🗑️ Delete State
+        </button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('admin.billing_settings') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="state" value="{{ selected_state }}">
+
+    <!-- Rates Grid -->
+    <div class="glass-card" style="border-radius: 12px; overflow: hidden; padding: 0; margin-bottom: 24px;">
+      <div style="padding: 20px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.01);">
+        <h3 style="margin: 0; color: var(--text-primary); font-size: 16px; font-weight: 600;">
+          Pricing for State: <span style="color: var(--accent-green);">{% if selected_state == 'Default' %}Default (All States){% else %}{{ selected_state }}{% endif %}</span>
+        </h3>
+        {% if current_user.role != 'superadmin' %}
+        <span class="badge badge-pending">View Only</span>
+        {% else %}
+        <span class="badge badge-delivered">Editable</span>
+        {% endif %}
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table" style="width: 100%; text-align: left; border-collapse: collapse;">
+          <thead>
+            <tr style="background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--glass-border);">
+              <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Mode / Company Name</th>
+              <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Base Rate (₹)</th>
+              <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Per Kg Rate (₹)</th>
+              <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Last Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rate in rates %}
+            {% if rate.courier_name == 'Pushpak' %}
+            {# ====== PUSHPAK SPECIAL ROW ====== #}
+            <tr style="border-bottom: 0; background: rgba(99,102,241,0.04);">
+              <td colspan="4" style="padding: 0;">
+                <div style="padding: 16px 16px 0 16px; display:flex; align-items:center; gap:8px;">
+                  <span>🚚</span>
+                  <span style="font-weight:700; color:var(--text-primary); font-size:14px;">Pushpak</span>
+                  <span style="background:rgba(99,102,241,0.15); color:#818cf8; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">Gram-Based Tiered Pricing</span>
+                </div>
+                <div style="padding: 12px 16px 16px 16px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  
+                  {# NORMAL SERVICE #}
+                  <div style="background:var(--bg-primary); border:1px solid var(--glass-border); border-radius:10px; padding:14px;">
+                    <div style="font-size:12px; font-weight:700; color:#10b981; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                      🟢 NORMAL Service &nbsp;<span style="font-weight:400; color:var(--text-secondary);">(Standard Delivery)</span>
+                    </div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px;">Base Rate (upto 500g) ₹</label>
+                        <input type="number" step="0.01" min="0"
+                               name="pushpak_normal_base_{{ rate.id }}"
+                               value="{{ rate.pushpak_normal_base }}"
+                               class="form-control" style="width:110px; padding:6px 10px; background:var(--bg-secondary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size:14px;"
+                               {% if current_user.role != 'superadmin' %}disabled{% endif %}>
+                      </div>
+                      <div>
+                        <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px;">Per Extra 500g ₹</label>
+                        <input type="number" step="0.01" min="0"
+                               name="pushpak_normal_extra_{{ rate.id }}"
+                               value="{{ rate.pushpak_normal_extra }}"
+                               class="form-control" style="width:110px; padding:6px 10px; background:var(--bg-secondary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size:14px;"
+                               {% if current_user.role != 'superadmin' %}disabled{% endif %}>
+                      </div>
+                    </div>
+                    <div style="margin-top:8px; font-size:11px; color:var(--text-muted); font-family:monospace; background:rgba(16,185,129,0.08); padding:6px 10px; border-radius:6px;">
+                      Formula: ₹{{ rate.pushpak_normal_base }} + ⌈(weight_g − 500) / 500⌉ × ₹{{ rate.pushpak_normal_extra }}
+                    </div>
+                  </div>
+
+                  {# PREMIUM SERVICE #}
+                  <div style="background:var(--bg-primary); border:1px solid var(--glass-border); border-radius:10px; padding:14px;">
+                    <div style="font-size:12px; font-weight:700; color:#f59e0b; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                      ⭐ PREMIUM Service &nbsp;<span style="font-weight:400; color:var(--text-secondary);">(Priority Delivery)</span>
+                    </div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px;">Base Rate (upto 500g) ₹</label>
+                        <input type="number" step="0.01" min="0"
+                               name="pushpak_premium_base_{{ rate.id }}"
+                               value="{{ rate.pushpak_premium_base }}"
+                               class="form-control" style="width:110px; padding:6px 10px; background:var(--bg-secondary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size:14px;"
+                               {% if current_user.role != 'superadmin' %}disabled{% endif %}>
+                      </div>
+                      <div>
+                        <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px;">Per Extra 500g ₹</label>
+                        <input type="number" step="0.01" min="0"
+                               name="pushpak_premium_extra_{{ rate.id }}"
+                               value="{{ rate.pushpak_premium_extra }}"
+                               class="form-control" style="width:110px; padding:6px 10px; background:var(--bg-secondary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size:14px;"
+                               {% if current_user.role != 'superadmin' %}disabled{% endif %}>
+                      </div>
+                    </div>
+                    <div style="margin-top:8px; font-size:11px; color:var(--text-muted); font-family:monospace; background:rgba(245,158,11,0.08); padding:6px 10px; border-radius:6px;">
+                      Formula: ₹{{ rate.pushpak_premium_base }} + ⌈(weight_g − 500) / 500⌉ × ₹{{ rate.pushpak_premium_extra }}
+                    </div>
+                  </div>
+
+                </div>
+                <div style="padding: 0 16px 12px 16px; font-size:12px; color:var(--text-muted);">
+                  💡 Weight can be entered in <strong>KG</strong> or <strong>GM</strong> in the dispatch form. Billing is always calculated in grams internally.
+                  &nbsp;|&nbsp; Last Updated: {% if rate.updated_at %}{{ rate.updated_at.strftime('%d %b %Y, %I:%M %p') }}{% else %}—{% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            {# ====== BLUE DART SPECIAL ROW ====== #}
+            {% if rate.courier_name == 'Blue Dart' %}
+            <tr style="border-bottom: 1px solid var(--glass-border); background: rgba(59,130,246,0.03);">
+              <td colspan="4" style="padding: 0;">
+                <div style="padding: 14px 16px 0 16px; display:flex; align-items:center; gap:8px;">
+                  <span>🚚</span>
+                  <span style="font-weight:700; color:var(--text-primary); font-size:14px;">Blue Dart</span>
+                  <span style="background:rgba(59,130,246,0.12); color:#60a5fa; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px;">State-Based Flat Rate</span>
+                </div>
+                <div style="padding: 10px 16px 14px 16px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+
+                  {# RAJASTHAN RATE #}
+                  <div style="background:var(--bg-primary); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:12px; display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:28px; font-weight:800; color:#10b981;">₹{{ bluedart_rj_rate|int }}</div>
+                    <div>
+                      <div style="font-size:12px; font-weight:700; color:#10b981;">📍 Rajasthan (Within RJ)</div>
+                      <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Flat rate per parcel, no per-kg charge</div>
+                      {% if current_user.role == 'superadmin' and selected_state == 'Rajasthan' %}
+                      <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
+                        <span style="color:var(--text-muted); font-size:11px;">Edit:</span>
+                        <input type="number" step="0.01" min="0" name="base_rate_{{ rate.id }}" value="{{ rate.base_rate }}"
+                               class="form-control" style="width:90px; padding:4px 8px; background:var(--bg-secondary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size:13px;">
+                        <input type="hidden" name="per_kg_rate_{{ rate.id }}" value="0">
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  {# OUTSIDE RAJASTHAN RATE #}
+                  <div style="background:var(--bg-primary); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:12px; display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:28px; font-weight:800; color:#f87171;">₹{{ bluedart_default_rate|int }}</div>
+                    <div>
+                      <div style="font-size:12px; font-weight:700; color:#f87171;">🌍 Outside Rajasthan</div>
+                      <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Flat rate per parcel, no per-kg charge</div>
+                      {% if current_user.role == 'superadmin' and selected_state == 'Default' %}
+                      <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
+                        <span style="color:var(--text-muted); font-size:11px;">Edit:</span>
+                        <input type="number" step="0.01" min="0" name="base_rate_{{ rate.id }}" value="{{ rate.base_rate }}"
+                               class="form-control" style="width:90px; padding:4px 8px; background:var(--bg-secondary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size:13px;">
+                        <input type="hidden" name="per_kg_rate_{{ rate.id }}" value="0">
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                </div>
+                <div style="padding: 0 16px 10px 16px; font-size:11px; color:var(--text-muted);">
+                  💡 To edit: Select the respective state from dropdown above → Save.
+                  &nbsp;|&nbsp; Last Updated: {% if rate.updated_at %}{{ rate.updated_at.strftime('%d %b %Y, %I:%M %p') }}{% else %}—{% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            {# ====== NORMAL ROW FOR OTHER COURIERS ====== #}
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+              <td style="padding: 14px 16px; color: var(--text-primary); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                {% if rate.courier_name in ['Professional', 'Trackon', 'Other Company'] %}
+                <span>🚚</span>
+                {% elif rate.courier_name == 'By Bus' %}
+                <span>🚌</span>
+                {% elif rate.courier_name == 'By Hand' %}
+                <span>👤</span>
+                {% else %}
+                <span>📍</span>
+                {% endif %}
+                {{ rate.courier_name }}
+              </td>
+              <td style="padding: 14px 16px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="color: var(--text-muted);">₹</span>
+                  <input type="number" step="0.01" min="0" name="base_rate_{{ rate.id }}" value="{{ rate.base_rate }}" 
+                         class="form-control" style="width: 130px; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 14px;"
+                         {% if current_user.role != 'superadmin' %}disabled{% endif %} required>
+                </div>
+              </td>
+              <td style="padding: 14px 16px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="color: var(--text-muted);">₹</span>
+                  <input type="number" step="0.01" min="0" name="per_kg_rate_{{ rate.id }}" value="{{ rate.per_kg_rate }}" 
+                         class="form-control" style="width: 130px; padding: 6px 10px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 14px;"
+                         {% if current_user.role != 'superadmin' %}disabled{% endif %} required>
+                </div>
+              </td>
+              <td style="padding: 14px 16px; font-size: 13px; color: var(--text-secondary);">
+                {% if rate.updated_at %}
+                {{ rate.updated_at.strftime('%d %b %Y, %I:%M %p') }}
+                {% else %}
+                —
+                {% endif %}
+              </td>
+            </tr>
+            {% endif %}
+
+            {% endif %}
+            {% endfor %}
+          </tbody>
+
+        </table>
+      </div>
+    </div>
+
+    <!-- Actions Row -->
+    {% if current_user.role == 'superadmin' %}
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <a href="{{ url_for('dashboard.admin_dashboard') }}" class="btn btn-ghost" style="padding: 12px 24px; border-radius: 6px; text-decoration: none;">Cancel</a>
+      <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981, #22d3ee); border: none; padding: 12px 28px; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        💾 Save {{ selected_state }} Rates
+      </button>
+    </div>
+    {% endif %}
+  </form>
+
+  <!-- Add State Modal -->
+  <div class="modal-overlay" id="addStateModal">
+    <div class="modal" style="max-width: 450px; width: 100%; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 24px; color: var(--text-primary); position: relative; margin: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">➕ Add Custom State</h3>
+        <button type="button" onclick="hideAdminModal('addStateModal')" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+      </div>
+      <form method="POST" action="{{ url_for('admin.add_billing_state') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 8px;">State Name *</label>
+          <input type="text" name="state_name" required placeholder="e.g. Haryana" class="form-control" style="width: 100%; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px;" box-sizing="border-box">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" onclick="hideAdminModal('addStateModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 6px; cursor: pointer;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981, #22d3ee); border: none; padding: 10px 24px; border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">Add State</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeBillingState(stateVal) {
+  window.location.href = "{{ url_for('admin.billing_settings') }}?state=" + encodeURIComponent(stateVal);
+}
+
+function showAdminModal(id) {
+  document.getElementById(id)?.classList.add('active');
+}
+
+function hideAdminModal(id) {
+  if(!id) {
+    document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
+  } else {
+    document.getElementById(id)?.classList.remove('active');
+  }
+}
+</script>
+{% endblock %}

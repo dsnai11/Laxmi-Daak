@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+  <div class="split-container">
+    <!-- Left: Banner (60% width, red theme image) -->
+    <div class="banner-side">
+    </div>
+    
+    <!-- Right: Login Form (40% width, off-white background) -->
+    <div class="login-side">
+      <div class="brand-header">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="brand-logo" style="filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.15));">
+        <span class="brand-title">Laxmi Daak</span>
+      </div>
+      
+      <div class="login-form-wrapper">
+        <div class="form-header">
+          <h2>Sign In</h2>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="auth-alerts">
+              {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">
+                  <span>{{ message }}</span>
+                  <button onclick="this.parentElement.remove()">×</button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        
+        <form method="POST" action="{{ url_for('auth.login') }}" class="auth-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          
+          <div class="form-group">
+            <label for="username">Username</label>
+            <div class="input-with-icon">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              </span>
+              <input type="text" id="username" name="username" class="form-control" required placeholder="admin">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="input-with-icon">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </span>
+              <input type="password" id="password" name="password" class="form-control" required placeholder="••••••••">
+              <button type="button" class="password-toggle" onclick="togglePassword()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg toggle-icon-svg"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="form-options">
+            <label class="checkbox-container">
+              <input type="checkbox" name="remember">
+              <span class="checkmark"></span>
+              Remember me
+            </label>
+            <a href="{{ url_for('auth.forgot_password') }}" class="forgot-link">Forgot Password?</a>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-block btn-lg gradient-btn">
+            Sign In
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="arrow-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </form>
+      </div>
+      
+      <div class="powered-by">
+        Powered by : <span>Laxmi India Finance Ltd.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Full Page Split Layout Theme */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: #fafafa;
+}
+
+.auth-page {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  background-color: #fafafa;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Card Container occupies full viewport */
+.split-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  background: #fafafa;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Right Side (Off-white Form, 40% width) */
+.login-side {
+  flex: 4; /* 40% Width */
+  padding: 50px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center; /* Center horizontally */
+  background: #fafafa; /* Off-white background */
+  box-sizing: border-box;
+  overflow-y: auto;
+  border-left: 1px solid #e5e7eb; /* Divider line now on the left of the form */
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+}
+.brand-logo {
+  max-height: 60px;
+  object-fit: contain;
+}
+.brand-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827; /* Dark text */
+  letter-spacing: -0.5px;
+}
+
+.login-form-wrapper {
+  margin: auto 0;
+  max-width: 360px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.form-header {
+  margin-bottom: 28px;
+  text-align: center;
+  width: 100%;
+}
+.form-header h2 {
+  font-size: 30px;
+  font-weight: 700;
+  color: #111827; /* Dark text */
+  margin: 0;
+}
+
+.auth-form {
+  width: 100%;
+}
+
+.form-group {
+  margin-bottom: 22px;
+  width: 100%;
+  text-align: left;
+}
+.form-group label {
+  display: block;
+  color: #4b5563; /* Medium dark label text */
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.input-icon {
+  position: absolute;
+  left: 16px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2px;
+}
+.input-with-icon .form-control {
+  padding-left: 48px;
+  padding-right: 48px;
+  width: 100%;
+  height: 48px;
+  background: #ffffff; /* White input background */
+  border: 1px solid #d1d5db; /* Light grey border */
+  color: #111827; /* Dark text color */
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  font-size: 14.5px;
+  box-sizing: border-box;
+}
+.input-with-icon .form-control::placeholder {
+  color: #9ca3af;
+}
+.input-with-icon .form-control:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+.input-with-icon .form-control:focus {
+  background: #ffffff;
+  border-color: #c21c1c;
+  box-shadow: 0 0 0 3px rgba(194, 28, 28, 0.15);
+  outline: none;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+.password-toggle:hover {
+  color: #111827;
+}
+
+/* Chrome autofill styling overrides for Light Theme */
+.input-with-icon .form-control:-webkit-autofill,
+.input-with-icon .form-control:-webkit-autofill:hover, 
+.input-with-icon .form-control:-webkit-autofill:focus, 
+.input-with-icon .form-control:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  border-color: #d1d5db !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Remember me & Forgot Password block */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  font-size: 13.5px;
+  width: 100%;
+}
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-left: 24px;
+  cursor: pointer;
+  color: #4b5563;
+  user-select: none;
+}
+.checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+.checkmark {
+  position: absolute;
+  left: 0;
+  height: 16px;
+  width: 16px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+.checkbox-container:hover input ~ .checkmark {
+  background-color: #f3f4f6;
+}
+.checkbox-container input:checked ~ .checkmark {
+  background-color: #c21c1c;
+  border-color: #c21c1c;
+}
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+.checkbox-container input:checked ~ .checkmark:after {
+  display: block;
+}
+.checkbox-container .checkmark:after {
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.forgot-link {
+  color: #c21c1c;
+  text-decoration: none;
+  font-weight: 600;
+}
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+/* Red Button */
+.btn-block {
+  width: 100%;
+  display: block;
+}
+.btn-lg {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.gradient-btn {
+  background: #c21c1c;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.gradient-btn:hover {
+  background: #d62222;
+  box-shadow: 0 4px 15px rgba(194, 28, 28, 0.3);
+}
+.gradient-btn:active {
+  transform: scale(0.99);
+}
+.arrow-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+.gradient-btn:hover .arrow-icon {
+  transform: translateX(4px);
+}
+
+.powered-by {
+  font-size: 13px;
+  color: #4b5563;
+  margin-top: 24px;
+  text-align: center;
+  width: 100%;
+}
+.powered-by span {
+  color: #c21c1c;
+  font-weight: 700;
+}
+
+/* Left Side (Banner with Image, 60% width, cover background size) */
+.banner-side {
+  flex: 6; /* 60% Width */
+  background-image: url("{{ url_for('static', filename='login_banner.jpg') }}");
+  background-size: cover; /* Fits perfectly since image is 1:1 square */
+  background-position: center;
+  position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .split-container {
+    flex-direction: column;
+    height: auto;
+    width: 100%;
+  }
+  .login-side {
+    flex: 1;
+    padding: 48px 24px;
+    height: 100vh;
+  }
+  .banner-side {
+    display: none; /* Hide the banner on mobile */
+  }
+}
+
+.flash {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+.flash-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+</style>
+
+<script>
+function togglePassword() {
+  const pwd = document.getElementById('password');
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+  } else {
+    pwd.type = 'password';
+  }
+}
+</script>
+{% endblock %}

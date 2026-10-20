@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Item Master{% endblock %}
+{% block page_title %}Item Master ({{ items.total }}){% endblock %}
+{% block breadcrumb %}Administration / Item Master{% endblock %}
+
+{% block content %}
+<div class="admin-container animate-fade-in" style="max-width: 800px; margin: 0 auto;">
+  
+  <!-- Add Item Form Card -->
+  <div class="glass-card" style="padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+    <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+      <span>📦</span> Add New Master Item
+    </h3>
+    <form id="addItemForm" onsubmit="submitItem(event)" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 250px;">
+        <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 8px;">Item Name (e.g. Laptop, Documents, Electronics) *</label>
+        <input type="text" name="name" id="itemNameInput" required class="form-control" placeholder="Enter item name..." style="width: 100%; padding: 11px 16px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; font-size: 14px;">
+      </div>
+      <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; height: 44px; display: flex; align-items: center;">+ Add to Master List</button>
+    </form>
+  </div>
+
+  <!-- Master Items Table -->
+  <div class="glass-card" style="border-radius: 12px; overflow: hidden; padding: 0;">
+    <div style="padding: 20px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.01);">
+      <h3 style="margin: 0; color: var(--text-primary); font-size: 16px; font-weight: 600;">Global Items List</h3>
+      <div style="position: relative;">
+        <input type="text" id="itemSearch" placeholder="Search items..." class="form-control" oninput="filterItems()" style="padding: 6px 12px 6px 28px; background: var(--bg-primary); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; width: 200px; font-size: 12px;">
+        <span style="position: absolute; left: 8px; top: 7px; font-size: 11px; color: var(--text-muted);">🔍</span>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table" id="itemTable" style="width: 100%; text-align: left; border-collapse: collapse;">
+        <thead>
+          <tr style="background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--glass-border);">
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">ID</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Item Name</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase;">Created On</th>
+            <th style="padding: 14px 16px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-transform: uppercase; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items.items %}
+          <tr style="border-bottom: 1px solid var(--glass-border);" data-name="{{ item.name|lower }}">
+            <td style="padding: 14px 16px; font-family: monospace; color: var(--text-muted);">#{{ item.id }}</td>
+            <td style="padding: 14px 16px; color: var(--text-primary); font-weight: 600; font-size: 14px;">{{ item.name }}</td>
+            <td style="padding: 14px 16px; font-size: 13px; color: var(--text-secondary);">{{ item.created_at.strftime('%d %b %Y, %I:%M %p') }}</td>
+            <td style="padding: 14px 16px; text-align: right;">
+              <button onclick="deleteItem('{{ item.id }}', '{{ item.name|e }}')" class="btn btn-sm" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🗑️ Delete</button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">No items in master list. Add some above.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if items.pages > 1 %}
+    <div style="padding: 16px; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+      <div style="color: var(--text-muted); font-size: 12px;">Showing {{ items.items|length }} of {{ items.total }} items</div>
+      <div style="display: flex; gap: 8px;">
+        {% if items.has_prev %}
+        <a href="{{ url_for('admin.items', page=items.prev_num) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Prev</a>
+        {% endif %}
+        {% if items.has_next %}
+        <a href="{{ url_for('admin.items', page=items.next_num) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function submitItem(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('itemNameInput');
+  const name = nameInput.value.trim();
+  if (!name) return;
+  
+  const formData = new FormData();
+  formData.append('name', name);
+  
+  fetch("{{ url_for('admin.add_item') }}", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      nameInput.value = '';
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("An error occurred");
+  });
+}
+
+function deleteItem(id, name) {
+  if(!confirm(`Are you sure you want to delete "${name}" from the master item list?\nNote: Existing parcels with this description will NOT be affected.`)) return;
+  
+  fetch(`/admin/items/delete/${id}`, {
+    method: "POST"
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("An error occurred");
+  });
+}
+
+function filterItems() {
+  const q = document.getElementById('itemSearch').value.toLowerCase();
+  document.querySelectorAll('#itemTable tbody tr[data-name]').forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

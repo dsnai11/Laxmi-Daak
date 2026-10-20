@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Raise Dispatch Query{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">📬 Raise Dispatch Query</h1>
+    <p class="page-subtitle">Submit a new courier dispatch request for the Admin team to process.</p>
+  </div>
+  <a href="{{ url_for('dispatch.my_queries') }}" class="btn btn-outline">← My Queries</a>
+</div>
+
+<!-- Workflow Steps Banner -->
+<div style="display:flex;gap:0;margin-bottom:2rem;border-radius:12px;overflow:hidden;border:1px solid var(--border);">
+  <div style="flex:1;padding:12px 16px;background:#4f46e5;color:#ffffff;text-align:center;">
+    <div style="font-size:11px;font-weight:600;opacity:.9;letter-spacing:1px;text-transform:uppercase;">Step 1</div>
+    <div style="font-size:13px;font-weight:700;margin-top:2px;">📬 You Raise Query</div>
+  </div>
+  <div style="flex:1;padding:12px 16px;background:#f8fafc;text-align:center;border-left:1px solid var(--border);color:#374151;">
+    <div style="font-size:11px;font-weight:600;opacity:.5;letter-spacing:1px;text-transform:uppercase;">Step 2</div>
+    <div style="font-size:13px;font-weight:600;opacity:.5;margin-top:2px;">🚚 Admin Picks Up</div>
+  </div>
+  <div style="flex:1;padding:12px 16px;background:#f8fafc;text-align:center;border-left:1px solid var(--border);color:#374151;">
+    <div style="font-size:11px;font-weight:600;opacity:.5;letter-spacing:1px;text-transform:uppercase;">Step 3</div>
+    <div style="font-size:13px;font-weight:600;opacity:.5;margin-top:2px;">📦 Receiver Confirms</div>
+  </div>
+  <div style="flex:1;padding:12px 16px;background:#f8fafc;text-align:center;border-left:1px solid var(--border);color:#374151;">
+    <div style="font-size:11px;font-weight:600;opacity:.5;letter-spacing:1px;text-transform:uppercase;">Step 4</div>
+    <div style="font-size:13px;font-weight:600;opacity:.5;margin-top:2px;">✅ You Confirm & Close</div>
+  </div>
+</div>
+
+<form method="POST" id="queryForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+    <!-- Sender Info -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">👤 Sender Details <span style="font-size:12px;color:var(--accent);font-weight:500;">(You)</span></h3>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" name="sender_name" class="form-control" value="{{ current_user.name }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" name="sender_phone" class="form-control" value="{{ current_user.phone or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="sender_email" class="form-control" value="{{ current_user.email or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sender Department</label>
+          <select name="sender_department_id" class="form-control">
+            <option value="">— Select Department —</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}" {% if current_user.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Room / Address (Optional)</label>
+          <input type="text" name="sender_address" class="form-control" placeholder="e.g. Room 301, 3rd Floor">
+        </div>
+      </div>
+    </div>
+
+    <!-- Receiver Info -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">📍 Receiver Details</h3>
+      </div>
+      <div class="card-body">
+        <!-- Quick fill from registered user -->
+        <div class="form-group">
+          <label class="form-label">Quick Fill from Registered User</label>
+          <select class="form-control" id="receiverUserSelect" onchange="fillReceiverFromUser(this)">
+            <option value="">— Select a User (Optional) —</option>
+            {% for u in users %}
+            <option value="{{ u.id }}"
+              data-name="{{ u.name }}"
+              data-phone="{{ u.phone or '' }}"
+              data-email="{{ u.email or '' }}"
+              data-branch="{{ u.branch_id or '' }}"
+              data-dept="{{ u.department_id or '' }}">
+              {{ u.name }} {% if u.department_name %}({{ u.department_name }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Receiver Name *</label>
+          <input type="text" name="receiver_name" id="receiverName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" name="receiver_phone" id="receiverPhone" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="receiver_email" id="receiverEmail" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destination Branch *</label>
+          <select name="receiver_branch_id" id="receiverBranch" class="form-control" required onchange="toggleOtherLocation(this.value)">
+            <option value="">— Select Branch —</option>
+            {% for b in branches %}
+            <option value="{{ b.id }}">{{ b.name }}</option>
+            {% endfor %}
+            <option value="other">Other Location (Bank, Shop, etc.)</option>
+          </select>
+        </div>
+        <div class="form-group" id="otherLocationGroup" style="display:none; margin-top: 10px;">
+          <label class="form-label">Specify Location / Branch Name *</label>
+          <input type="text" name="other_receiver_location" id="otherReceiverLocation" class="form-control" placeholder="e.g. ICICI Bank, Local Shop">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destination Department</label>
+          <select name="receiver_department_id" id="receiverDept" class="form-control">
+            <option value="">— Select Department —</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+          <label class="form-label" style="color: var(--accent); font-weight: bold;">Assign Admin for Pickup *</label>
+          <select name="assigned_admin_id" id="assignedAdmin" class="form-control" required>
+            <option value="">— Select Admin Employee (Mandatory) —</option>
+            {% for ae in admin_employees %}
+            <option value="{{ ae.id }}">{{ ae.name }} (Admin)</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end grid -->
+
+  <!-- Package Details -->
+  <div class="card" style="margin-top:1.5rem;">
+    <div class="card-header">
+      <h3 class="card-title">📦 Package & Request Details</h3>
+    </div>
+    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+      <div>
+        <div class="form-group">
+          <label class="form-label">Description / Content *</label>
+          <textarea name="description" class="form-control" rows="3" placeholder="Describe what is being sent (e.g. legal documents, invoices, hardware)..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select name="priority" class="form-control">
+            <option value="normal">Normal</option>
+            <option value="urgent">Urgent</option>
+            <option value="express">Express</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="form-group">
+          <label class="form-label">Special Instructions</label>
+          <textarea name="special_instructions" class="form-control" rows="3" placeholder="Any special handling instructions for the Admin team..."></textarea>
+        </div>
+        <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:1rem;margin-top:.5rem;">
+          <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px;">ℹ️ What happens next?</div>
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+            After you submit this query, the <strong>Admin team</strong> will collect the physical courier from you,
+            fill in the shipping details, and dispatch it to the receiver.
+            You'll be notified once the receiver confirms receipt so you can close this query.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1.5rem;">
+    <a href="{{ url_for('dispatch.my_queries') }}" class="btn btn-outline">Cancel</a>
+    <button type="submit" class="btn btn-primary" style="padding:12px 32px;font-size:15px;">
+      📬 Submit Dispatch Query
+    </button>
+  </div>
+</form>
+
+<script>
+function toggleOtherLocation(val) {
+  const otherDiv = document.getElementById('otherLocationGroup');
+  const otherInput = document.getElementById('otherReceiverLocation');
+  if (val === 'other') {
+    otherDiv.style.display = 'block';
+    otherInput.required = true;
+  } else {
+    otherDiv.style.display = 'none';
+    otherInput.required = false;
+    otherInput.value = '';
+  }
+}
+
+function fillReceiverFromUser(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt.value) return;
+  document.getElementById('receiverName').value  = opt.dataset.name  || '';
+  document.getElementById('receiverPhone').value = opt.dataset.phone || '';
+  document.getElementById('receiverEmail').value = opt.dataset.email || '';
+  if (opt.dataset.branch) {
+    const branchSel = document.getElementById('receiverBranch');
+    for (let o of branchSel.options) { if (o.value == opt.dataset.branch) { o.selected = true; break; } }
+    toggleOtherLocation(opt.dataset.branch);
+  }
+  if (opt.dataset.dept) {
+    const deptSel = document.getElementById('receiverDept');
+    for (let o of deptSel.options) { if (o.value == opt.dataset.dept) { o.selected = true; break; } }
+  }
+}
+</script>
+{% endblock %}

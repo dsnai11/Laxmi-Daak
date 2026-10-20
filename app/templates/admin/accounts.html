@@ -1,0 +1,1326 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Accounts & Logins{% endblock %}
+{% block page_title %}Accounts & Logins ({{ accounts.total }}){% endblock %}
+{% block breadcrumb %}Administration / Accounts{% endblock %}
+
+{% block content %}
+<div class="admin-container animate-fade-in">
+  
+  <style>
+  /* Modern Accounts & Logins Action Buttons & UI */
+  .action-pill-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: 1.2px solid transparent !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  }
+  
+  .action-pill-btn.edit-pill {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border-color: #bfdbfe !important;
+  }
+  .action-pill-btn.edit-pill:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25) !important;
+  }
+  
+  .action-pill-btn.creds-pill {
+    background: #f0fdf4 !important;
+    color: #15803d !important;
+    border-color: #bbf7d0 !important;
+  }
+  .action-pill-btn.creds-pill:hover {
+    background: #16a34a !important;
+    color: #ffffff !important;
+    border-color: #16a34a !important;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(22, 163, 74, 0.25) !important;
+  }
+  
+  .action-pill-btn.delete-pill {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border-color: #fecaca !important;
+  }
+  .action-pill-btn.delete-pill:hover {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    border-color: #dc2626 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(220, 38, 38, 0.25) !important;
+  }
+  
+  [data-theme="dark"] .action-pill-btn.edit-pill {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+    border-color: rgba(59, 130, 246, 0.3) !important;
+  }
+  [data-theme="dark"] .action-pill-btn.edit-pill:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+  }
+  [data-theme="dark"] .action-pill-btn.creds-pill {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+  }
+  [data-theme="dark"] .action-pill-btn.creds-pill:hover {
+    background: #10b981 !important;
+    color: #ffffff !important;
+  }
+  [data-theme="dark"] .action-pill-btn.delete-pill {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+  }
+  [data-theme="dark"] .action-pill-btn.delete-pill:hover {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+  }
+  
+  .account-row:hover, .branch-row:hover {
+    background: rgba(59, 130, 246, 0.04) !important;
+  }
+
+  /* Laptop & Desktop Grid Adaptations */
+  .accounts-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 900px) {
+    .accounts-stat-grid {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+      gap: 10px !important;
+    }
+  }
+  @media (max-width: 550px) {
+    .accounts-stat-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* Responsive Modal Architecture for Laptops & Mobile */
+  .modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
+    overflow-y: auto !important;
+  }
+  .modal-overlay.active {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+  .modal-card {
+    background: var(--bg-secondary, #0d1b2a) !important;
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)) !important;
+    border-radius: 14px !important;
+    width: 540px !important;
+    max-width: 96vw !important;
+    max-height: 88vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--glass-border, rgba(255, 255, 255, 0.08)) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    transform: scale(0.96);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    margin: auto !important;
+    padding: 0 !important;
+  }
+  .modal-overlay.active .modal-card {
+    transform: scale(1) !important;
+  }
+  .modal-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 14px 20px !important;
+    background: var(--bg-secondary, #0d1b2a) !important;
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08)) !important;
+    flex-shrink: 0 !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+  }
+  .modal-head h3 {
+    margin: 0 !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .modal-close-btn {
+    background: none !important;
+    border: none !important;
+    color: var(--text-muted, #94a3b8) !important;
+    font-size: 22px !important;
+    cursor: pointer !important;
+    line-height: 1 !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    transition: all 0.15s ease !important;
+  }
+  .modal-close-btn:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ef4444 !important;
+  }
+  .modal-form-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+  }
+  .modal-scroll-content {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 16px 20px !important;
+    box-sizing: border-box !important;
+  }
+  .modal-scroll-content::-webkit-scrollbar {
+    width: 6px !important;
+  }
+  .modal-scroll-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border-radius: 4px !important;
+  }
+  .modal-scroll-content::-webkit-scrollbar-thumb {
+    background: rgba(79, 142, 247, 0.35) !important;
+    border-radius: 4px !important;
+  }
+  .modal-scroll-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(79, 142, 247, 0.7) !important;
+  }
+  .modal-foot {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 20px !important;
+    background: var(--bg-secondary, #0d1b2a) !important;
+    border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08)) !important;
+    flex-shrink: 0 !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 2 !important;
+  }
+  .modal-field-group {
+    margin-bottom: 12px;
+  }
+  .modal-field-group:last-child {
+    margin-bottom: 0;
+  }
+  .modal-label {
+    display: block;
+    color: var(--text-secondary, #64748b);
+    font-size: 11.5px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
+  }
+  .modal-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-primary, #ffffff);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.15));
+    color: var(--text-primary);
+    border-radius: 7px;
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .modal-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  }
+  .modal-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 520px) {
+    .modal-two-col {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+  }
+  </style>
+
+  <!-- Top Stat Summary Cards -->
+  <div class="accounts-stat-grid">
+    <!-- Stat 1: Total Accounts -->
+    <div class="glass-card stat-card" style="padding: 12px 14px; border-radius: 12px; display: flex; align-items: center; gap: 12px; border-left: 4px solid #3b82f6; box-shadow: 0 1px 4px rgba(0,0,0,0.04); min-width: 0;">
+      <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(59, 130, 246, 0.12); color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">👥</div>
+      <div style="min-width: 0;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted, #64748b); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Total Accounts</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--text-primary, #0f172a); line-height: 1.1; margin-top: 2px;">{{ accounts.total }}</div>
+      </div>
+    </div>
+    
+    <!-- Stat 2: Active Branches -->
+    <div class="glass-card stat-card" style="padding: 12px 14px; border-radius: 12px; display: flex; align-items: center; gap: 12px; border-left: 4px solid #8b5cf6; box-shadow: 0 1px 4px rgba(0,0,0,0.04); min-width: 0;">
+      <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(139, 92, 246, 0.12); color: #7c3aed; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">🏢</div>
+      <div style="min-width: 0;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted, #64748b); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Branches / Logins</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--text-primary, #0f172a); line-height: 1.1; margin-top: 2px;">{{ branches|length }}</div>
+      </div>
+    </div>
+    
+    <!-- Stat 3: Departments -->
+    <div class="glass-card stat-card" style="padding: 12px 14px; border-radius: 12px; display: flex; align-items: center; gap: 12px; border-left: 4px solid #06b6d4; box-shadow: 0 1px 4px rgba(0,0,0,0.04); min-width: 0;">
+      <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(6, 182, 212, 0.12); color: #0891b2; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;">📂</div>
+      <div style="min-width: 0;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted, #64748b); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Departments</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--text-primary, #0f172a); line-height: 1.1; margin-top: 2px;">{{ departments|length }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div style="display: flex; border-bottom: 2px solid rgba(226, 232, 240, 0.8); margin-bottom: 18px; gap: 14px;">
+    <button onclick="switchTab('accounts')" id="tabBtnAccounts" class="tab-btn active" style="background: none; border: none; border-bottom: 3px solid #3b82f6; color: #2563eb; padding: 10px 14px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 7px; margin-bottom: -2px; transition: all 0.2s;">
+      👤 Accounts & Logins
+      <span style="background: rgba(59, 130, 246, 0.12); color: #2563eb; font-size: 10.5px; padding: 2px 7px; border-radius: 999px; font-weight: 700;">{{ accounts.total }}</span>
+    </button>
+    <button onclick="switchTab('branches')" id="tabBtnBranches" class="tab-btn" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-muted, #64748b); padding: 10px 14px; font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 7px; margin-bottom: -2px; transition: all 0.2s;">
+      🏢 Branches & Addresses
+      <span style="background: rgba(100, 116, 139, 0.12); color: var(--text-muted, #64748b); font-size: 10.5px; padding: 2px 7px; border-radius: 999px; font-weight: 700;">{{ branches|length }}</span>
+    </button>
+  </div>
+
+  <div id="accountsContent" class="tab-content">
+    <!-- Action / Filter Toolbar -->
+    <div class="action-bar glass-card" style="padding: 8px 10px; border-radius: 12px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); box-sizing: border-box; width: 100%;">
+      <!-- Left: Filters Form -->
+      <form method="GET" action="{{ url_for('admin.accounts') }}" style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin: 0; min-width: 0;">
+        <div style="position: relative;">
+          <input type="text" name="search" value="{{ search or '' }}" placeholder="Search..." class="form-control" style="padding: 4px 6px 4px 22px; background: var(--bg-primary, #ffffff); border: 1.5px solid var(--glass-border, #cbd5e1); color: var(--text-primary, #0f172a); border-radius: 6px; width: 110px; font-size: 11px; height: 30px; outline: none;">
+          <span style="position: absolute; left: 6px; top: 7px; font-size: 10px; color: var(--text-muted, #94a3b8);">🔍</span>
+        </div>
+        
+        <select name="role" onchange="this.form.submit()" class="form-control" style="padding: 4px 5px; background: var(--bg-primary, #ffffff); border: 1.5px solid var(--glass-border, #cbd5e1); color: var(--text-primary, #0f172a); border-radius: 6px; font-size: 11px; font-weight: 600; width: auto; max-width: 100px; height: 30px; cursor: pointer; outline: none;">
+          <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
+          <option value="manager" {% if role_filter == 'manager' %}selected{% endif %}>🏢 Branch</option>
+          <option value="employee" {% if role_filter == 'employee' %}selected{% endif %}>📁 Department</option>
+          <option value="superadmin" {% if role_filter == 'superadmin' %}selected{% endif %}>👑 Admin</option>
+        </select>
+        
+        <select name="department_id" onchange="this.form.submit()" class="form-control" style="padding: 4px 5px; background: var(--bg-primary, #ffffff); border: 1.5px solid var(--glass-border, #cbd5e1); color: var(--text-primary, #0f172a); border-radius: 6px; font-size: 11px; font-weight: 600; width: auto; max-width: 115px; height: 30px; cursor: pointer; outline: none;">
+          <option value="" {% if not selected_department %}selected{% endif %}>All Depts</option>
+          {% for d in departments %}
+          <option value="{{ d.id }}" {% if selected_department == d.id %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+        
+        <button type="submit" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px; font-weight: 600; border-radius: 6px; height: 30px; background: #2563eb; color: #ffffff; border: none; cursor: pointer;">Filter</button>
+        {% if search or role_filter or selected_branch or selected_department %}
+        <a href="{{ url_for('admin.accounts') }}" class="btn btn-ghost" style="padding: 4px 6px; font-size: 10px; font-weight: 600; text-decoration: none; border: 1.2px solid #cbd5e1; border-radius: 6px; color: #64748b; height: 30px; display: inline-flex; align-items: center;">✕</a>
+        {% endif %}
+      </form>
+      
+      <!-- Right: Action Buttons -->
+      <div style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin-left: auto;">
+        <a href="{{ url_for('admin.accounts_template') }}" class="btn btn-ghost" style="padding: 4px 7px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; border: 1.2px solid #10b981; color: #059669; font-weight: 600; border-radius: 6px; background: rgba(16,185,129,0.06); height: 30px; white-space: nowrap;">
+          📄 Template
+        </a>
+        <button onclick="showAdminModal('importExcelModal')" class="btn btn-ghost" style="padding: 4px 7px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; border: 1.2px solid #06b6d4; color: #0891b2; font-weight: 600; border-radius: 6px; background: rgba(6,182,212,0.06); height: 30px; white-space: nowrap;">
+          📥 Import
+        </button>
+        <button onclick="showAdminModal('addAccountModal')" class="btn btn-primary" style="background: linear-gradient(135deg, #3b82f6, #6366f1); border: none; color: white; padding: 4px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(59,130,246,0.25); height: 30px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
+          <span>+</span> Add Account
+        </button>
+      </div>
+    </div>
+
+    <!-- Accounts Data Table (100% Fit for Laptops) -->
+    <div class="glass-card" style="border-radius: 12px; overflow: hidden; padding: 0; border: 1px solid rgba(226, 232, 240, 0.9); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04); width: 100%; box-sizing: border-box;">
+      <div class="table-responsive" style="overflow-x: auto; width: 100%; box-sizing: border-box;">
+        <table class="data-table" style="width: 100%; text-align: left; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #0f172a; border-bottom: 1px solid #1e293b;">
+              <th style="padding: 7px 8px; color: #f8fafc; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">Name / Account</th>
+              <th style="padding: 7px 8px; color: #f8fafc; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">🔐 ID & PW</th>
+              <th style="padding: 7px 8px; color: #f8fafc; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Role</th>
+              <th style="padding: 7px 8px; color: #f8fafc; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">Location</th>
+              <th style="padding: 7px 8px; color: #f8fafc; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">Contact</th>
+              <th style="padding: 7px 8px; color: #f8fafc; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Status</th>
+              <th style="padding: 7px 8px; color: #f8fafc; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; width: 145px; min-width: 145px; white-space: nowrap;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for acc in accounts.items %}
+            <tr class="account-row" style="border-bottom: 1px solid rgba(226, 232, 240, 0.7); transition: background 0.15s ease;">
+              <!-- 1. Name / Account -->
+              <td style="padding: 7px 8px; vertical-align: middle;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <div style="width: 26px; height: 26px; border-radius: 6px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 800; color: #ffffff; flex-shrink: 0;">
+                    {{ acc.name[0].upper() if acc.name else 'A' }}
+                  </div>
+                  <div style="min-width: 0;">
+                    {% set clean_name = acc.name.replace('(Branch Login)', '').replace('(Department Login)', '').strip() %}
+                    <div style="font-size: 12px; font-weight: 700; color: var(--text-primary, #0f172a); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;" title="{{ acc.name }}">
+                      {{ clean_name }}
+                    </div>
+                    {% if '(Branch Login)' in acc.name %}
+                    <span style="display: inline-flex; align-items: center; gap: 2px; font-size: 9px; font-weight: 600; padding: 1px 3px; border-radius: 3px; background: rgba(59, 130, 246, 0.08); color: #2563eb; margin-top: 1px;">
+                      🏢 Branch
+                    </span>
+                    {% elif '(Department Login)' in acc.name %}
+                    <span style="display: inline-flex; align-items: center; gap: 2px; font-size: 9px; font-weight: 600; padding: 1px 3px; border-radius: 3px; background: rgba(6, 182, 212, 0.08); color: #0891b2; margin-top: 1px;">
+                      📁 Dept
+                    </span>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+
+              <!-- 2. Login ID / Password -->
+              <td style="padding: 7px 8px; vertical-align: middle; white-space: nowrap;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <div style="display: inline-flex; align-items: center; gap: 3px;">
+                    <span style="font-size: 9px; font-weight: 700; color: #64748b;">ID:</span>
+                    <code style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 1px 4px; border-radius: 3px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 10.5px; font-weight: 700;">{{ acc.username }}</code>
+                  </div>
+                  <div style="display: inline-flex; align-items: center; gap: 3px;">
+                    <span style="font-size: 9px; font-weight: 700; color: #64748b;">PW:</span>
+                    <code style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 1px 4px; border-radius: 3px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 10.5px; font-weight: 700;">{{ acc.password_plain|default('••••••••', true) }}</code>
+                  </div>
+                </div>
+              </td>
+
+              <!-- 3. Role -->
+              <td style="padding: 7px 8px; vertical-align: middle; white-space: nowrap;">
+                {% if acc.role == 'superadmin' %}
+                <span style="display: inline-flex; align-items: center; gap: 2px; background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: 700;">
+                  👑 Admin
+                </span>
+                {% elif acc.role == 'manager' %}
+                <span style="display: inline-flex; align-items: center; gap: 2px; background: #faf5ff; color: #6b21a8; border: 1px solid #f3e8ff; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: 700;">
+                  🏢 Branch
+                </span>
+                {% else %}
+                <span style="display: inline-flex; align-items: center; gap: 2px; background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: 700;">
+                  📁 Department
+                </span>
+                {% endif %}
+              </td>
+
+              <!-- 4. Branch / Location -->
+              <td style="padding: 7px 8px; vertical-align: middle;">
+                <div style="font-size: 11.5px; font-weight: 600; color: var(--text-primary, #0f172a); display: flex; align-items: center; gap: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 105px;" title="{{ acc.branch_name }}">
+                  <span>🏢</span> {{ acc.branch_name|default('Global / HQ', true) }}
+                </div>
+                {% if acc.department_name %}
+                <div style="font-size: 10px; margin-top: 1px; color: #0891b2; font-weight: 600; display: flex; align-items: center; gap: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 105px;" title="{{ acc.department_name }}">
+                  <span>📂</span> {{ acc.department_name }}
+                </div>
+                {% endif %}
+              </td>
+
+              <!-- 5. Email & Contact -->
+              <td style="padding: 7px 8px; vertical-align: middle;">
+                {% if acc.email %}
+                <div style="color: #2563eb; font-weight: 600; font-size: 11px; display: flex; align-items: center; gap: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 115px;" title="{{ acc.email }}">
+                  <span>📧</span> {{ acc.email }}
+                </div>
+                {% endif %}
+                {% if acc.phone %}
+                <div style="color: var(--text-secondary, #64748b); font-size: 10px; font-weight: 500; margin-top: 1px; display: flex; align-items: center; gap: 2px;">
+                  <span>📱</span> {{ acc.phone }}
+                </div>
+                {% endif %}
+                {% if not acc.email and not acc.phone %}
+                <span style="color: var(--text-muted, #94a3b8); font-size: 10px;">—</span>
+                {% endif %}
+              </td>
+
+              <!-- 6. Status -->
+              <td style="padding: 7px 8px; vertical-align: middle; white-space: nowrap;">
+                {% if acc.is_active %}
+                <span style="display: inline-flex; align-items: center; gap: 2px; padding: 2px 5px; border-radius: 999px; background: #ecfdf5; color: #065f46; font-size: 10px; font-weight: 700; border: 1px solid #a7f3d0;">
+                  <span style="width: 4px; height: 4px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                  Active
+                </span>
+                {% else %}
+                <span style="display: inline-flex; align-items: center; gap: 2px; padding: 2px 5px; border-radius: 999px; background: #fef2f2; color: #991b1b; font-size: 10px; font-weight: 700; border: 1px solid #fecaca;">
+                  <span style="width: 4px; height: 4px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                  Inactive
+                </span>
+                {% endif %}
+              </td>
+
+              <!-- 7. Actions (Compact Pill Group Guaranteed to Fit on Laptops) -->
+              <td style="padding: 7px 8px; text-align: right; white-space: nowrap; width: 145px; min-width: 145px; vertical-align: middle;">
+                <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; white-space: nowrap;">
+                  <button type="button"
+                          onclick="openEditAccount('{{ acc.id }}', '{{ acc.name|escape }}', '{{ acc.username|escape }}', '{{ acc.role }}', '{{ acc.branch_id or '' }}', '{{ acc.department_id or '' }}', '{{ acc.email|escape }}', '{{ acc.phone|escape }}', '{{ acc.branch.address|escape if acc.branch else '' }}', '{{ acc.get_permissions_string() }}')"
+                          class="action-pill-btn edit-pill"
+                          title="Edit Account Details">
+                    <span>✏️</span> <span>Edit</span>
+                  </button>
+                  <button type="button"
+                          onclick="changeAccountCreds('{{ acc.id }}', '{{ acc.name|escape }}', '{{ acc.username|escape }}')"
+                          class="action-pill-btn creds-pill"
+                          title="Change Login ID & Password">
+                    <span>🔑</span> <span>Pass</span>
+                  </button>
+                  <button type="button"
+                          onclick="deleteAccount('{{ acc.id }}', '{{ acc.name|escape }}')"
+                          class="action-pill-btn delete-pill"
+                          title="Permanently Delete Account">
+                    <span>🗑️</span> <span>Del</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                <div style="font-size: 28px; margin-bottom: 6px;">🔍</div>
+                <div style="font-size: 14px; font-weight: 600;">No accounts found matching your query.</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Try adjusting your filters or search keywords.</div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if accounts.total > 0 %}
+    <div style="padding: 14px 16px; border-top: 1px solid var(--glass-border, #e2e8f0); display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+      <div style="color: var(--text-muted, #64748b); font-size: 12px; font-weight: 500;">Showing {{ accounts.items|length }} of {{ accounts.total }} results</div>
+      <div style="display: flex; gap: 6px;">
+        {% if accounts.has_prev %}
+        <a href="{{ url_for('admin.accounts', page=accounts.prev_num, role=role_filter, search=search) }}" class="btn btn-sm" style="background: var(--bg-card, #ffffff); color: var(--text-primary, #0f172a); border: 1.2px solid var(--glass-border, #cbd5e1); padding: 5px 12px; border-radius: 7px; text-decoration: none; font-size: 12px; font-weight: 600;">Prev</a>
+        {% endif %}
+        {% if accounts.has_next %}
+        <a href="{{ url_for('admin.accounts', page=accounts.next_num, role=role_filter, search=search) }}" class="btn btn-sm" style="background: var(--bg-card, #ffffff); color: var(--text-primary, #0f172a); border: 1.2px solid var(--glass-border, #cbd5e1); padding: 5px 12px; border-radius: 7px; text-decoration: none; font-size: 12px; font-weight: 600;">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div> <!-- /accountsContent -->
+
+  <!-- Branches & Addresses Tab Content -->
+  <div id="branchesContent" class="tab-content" style="display: none;">
+    <div class="action-bar glass-card" style="padding: 12px 16px; border-radius: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+      <div>
+        <h3 style="margin: 0; color: var(--text-primary, #0f172a); font-size: 15px; font-weight: 700;">🏢 Branches & Locations</h3>
+        <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted, #64748b);">Manage branch codes, addresses, states (for state-wise billing), and contact details.</p>
+      </div>
+      <button onclick="showAdminModal('addBranchModal')" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.25);">
+        + Add New Branch
+      </button>
+    </div>
+
+    <div class="glass-card" style="border-radius: 12px; overflow: hidden; padding: 0; border: 1px solid rgba(226, 232, 240, 0.9); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);">
+      <div class="table-responsive" style="overflow-x: auto; width: 100%;">
+        <table class="data-table" style="width: 100%; text-align: left; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #0f172a; border-bottom: 1px solid #1e293b;">
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 75px;">Code</th>
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Name</th>
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 100px;">City</th>
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 100px;">State</th>
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Address</th>
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 75px;">Pincode</th>
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Contact</th>
+              <th style="padding: 8px 10px; color: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-align: right; width: 130px; min-width: 130px; white-space: nowrap;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in branches %}
+            <tr class="branch-row" style="border-bottom: 1px solid rgba(226, 232, 240, 0.7); transition: background 0.15s ease;">
+              <td style="padding: 8px 10px; vertical-align: middle;">
+                <code style="background: rgba(59,130,246,0.1); color: #2563eb; border: 1px solid rgba(59,130,246,0.25); padding: 2px 5px; border-radius: 4px; font-size: 11px; font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 700;">{{ b.branch_code }}</code>
+              </td>
+              <td style="padding: 8px 10px; color: var(--text-primary, #0f172a); font-weight: 700; font-size: 12.5px; vertical-align: middle;">
+                {{ b.name }}
+              </td>
+              <td style="padding: 8px 10px; color: var(--text-primary, #0f172a); font-size: 12px; font-weight: 600; vertical-align: middle;">
+                {{ b.city }}
+              </td>
+              <td style="padding: 8px 10px; vertical-align: middle;">
+                <span style="background: rgba(139,92,246,0.1); color: #7c3aed; border: 1px solid rgba(139,92,246,0.25); padding: 2px 6px; border-radius: 5px; font-size: 10.5px; font-weight: 600;">{{ b.state }}</span>
+              </td>
+              <td style="padding: 8px 10px; color: var(--text-secondary, #64748b); font-size: 11.5px; max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;" title="{{ b.address }}">
+                {{ b.address }}
+              </td>
+              <td style="padding: 8px 10px; color: var(--text-primary, #0f172a); font-family: monospace; font-size: 12px; font-weight: 600; vertical-align: middle;">
+                {{ b.pincode }}
+              </td>
+              <td style="padding: 8px 10px; font-size: 11px; line-height: 1.25; vertical-align: middle;">
+                {% if b.email %}<div style="color: #2563eb; font-weight: 600;">📧 {{ b.email }}</div>{% endif %}
+                {% if b.phone %}<div style="color: var(--text-secondary, #64748b); font-size: 10.5px; margin-top: 1px;">📱 {{ b.phone }}</div>{% endif %}
+                {% if not b.email and not b.phone %}<span style="color: var(--text-muted);">—</span>{% endif %}
+              </td>
+              <td style="padding: 8px 10px; text-align: right; white-space: nowrap; width: 130px; vertical-align: middle;">
+                <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap;">
+                  <button type="button"
+                          onclick="openEditBranch('{{ b.id }}', '{{ b.branch_code|escape }}', '{{ b.name|escape }}', '{{ b.city|escape }}', '{{ b.state|escape }}', '{{ b.address|escape }}', '{{ b.pincode|escape }}', '{{ b.phone|escape }}', '{{ b.email|escape }}')"
+                          class="action-pill-btn edit-pill"
+                          title="Edit Branch">
+                    <span>✏️</span> <span>Edit</span>
+                  </button>
+                  <button type="button"
+                          onclick="deleteBranch('{{ b.id }}', '{{ b.branch_code|escape }}')"
+                          class="action-pill-btn delete-pill"
+                          title="Delete Branch">
+                    <span>🗑️</span> <span>Delete</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">No branches registered yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<!-- Add Account Modal -->
+<div class="modal-overlay" id="addAccountModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>➕ Add New Account / Login</h3>
+      <button type="button" class="modal-close-btn" onclick="hideAdminModal('addAccountModal')" title="Close">&times;</button>
+    </div>
+    
+    <form id="addAccountForm" onsubmit="submitAddAccount(event)" class="modal-form-wrap">
+      <div class="modal-scroll-content">
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Name / Account Title *</label>
+            <input type="text" name="name" required class="form-control modal-input" placeholder="e.g. Jaipur Branch or Ramesh">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Login ID (Username) *</label>
+            <input type="text" name="username" required class="form-control modal-input" placeholder="e.g. jaipur_branch" style="font-family: monospace;">
+          </div>
+        </div>
+        
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Password *</label>
+            <input type="password" name="password" required class="form-control modal-input" placeholder="Enter password" style="font-family: monospace;">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Role *</label>
+            <select name="role" required class="form-control modal-input">
+              <option value="manager">Branch Manager / Branch Login</option>
+              <option value="employee">Department</option>
+              <option value="superadmin">Admin</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Branch / Location</label>
+            <select name="branch_id" class="form-control modal-input">
+              <option value="">Select Branch (or create new)...</option>
+              {% for b in branches %}
+              <option value="{{ b.id }}">{{ b.name }} ({{ b.city }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Department (Optional)</label>
+            <select name="department_id" class="form-control modal-input">
+              <option value="">Select Department...</option>
+              {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Email (Optional)</label>
+            <input type="email" name="email" class="form-control modal-input" placeholder="e.g. user@lifc.in">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Phone (Optional)</label>
+            <input type="tel" name="phone" class="form-control modal-input" placeholder="e.g. 98290XXXXX">
+          </div>
+        </div>
+        
+        <!-- Permissions Selection -->
+        <div style="margin-bottom: 8px; border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; background: rgba(59, 130, 246, 0.03);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <h4 style="color: var(--text-primary); margin: 0; font-size: 12px; font-weight: 700;">🔐 User Access Permissions (Department / Employees)</h4>
+            <span style="font-size: 10.5px; color: var(--text-muted);">Configurable</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 7px; font-size: 11.5px; color: var(--text-secondary);">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_scan" checked style="accent-color: #3b82f6;"> Scan QR Code
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_raise_query" checked style="accent-color: #3b82f6;"> Raise / View My Queries
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_dispatch_queries" style="accent-color: #3b82f6;"> Dispatch Queries (Admin)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_new_dispatch" checked style="accent-color: #3b82f6;"> New Dispatch
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_bulk_dispatch" checked style="accent-color: #3b82f6;"> Bulk Dispatch
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_view_parcels" checked style="accent-color: #3b82f6;"> View All Parcels
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_overdue" checked style="accent-color: #3b82f6;"> Overdue Parcels
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_archive" checked style="accent-color: #3b82f6;"> Archive
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_reports" checked style="accent-color: #3b82f6;"> Reports
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-foot">
+        <button type="button" onclick="hideAdminModal('addAccountModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 7px; cursor: pointer; font-size: 13px;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 8px 20px; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(79, 142, 247, 0.3);">Create Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Account Modal -->
+<div class="modal-overlay" id="editAccountModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>✏️ Edit Account Details</h3>
+      <button type="button" class="modal-close-btn" onclick="hideAdminModal('editAccountModal')" title="Close">&times;</button>
+    </div>
+    
+    <form id="editAccountForm" onsubmit="submitEditAccount(event)" class="modal-form-wrap">
+      <input type="hidden" name="user_id" id="editUserId">
+      <div class="modal-scroll-content">
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Name / Account Title *</label>
+            <input type="text" name="name" id="editAccName" required class="form-control modal-input">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Login ID (Username) *</label>
+            <input type="text" name="username" id="editAccUsername" required class="form-control modal-input" style="font-family: monospace;">
+          </div>
+        </div>
+        
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Role *</label>
+            <select name="role" id="editAccRole" required class="form-control modal-input">
+              <option value="manager">Branch Manager / Branch Login</option>
+              <option value="employee">Department</option>
+              <option value="superadmin">Admin</option>
+            </select>
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Branch / Location</label>
+            <select name="branch_id" id="editAccBranchId" class="form-control modal-input" onchange="updateEditModalBranchAddress(this)">
+              <option value="" data-address="">Select Branch...</option>
+              {% for b in branches %}
+              <option value="{{ b.id }}" data-address="{{ b.address|escape }}">{{ b.name }} ({{ b.city }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        
+        <div class="modal-field-group">
+          <label class="modal-label">Department (Optional)</label>
+          <select name="department_id" id="editAccDepartmentId" class="form-control modal-input">
+            <option value="">Select Department...</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Associated Branch Address Edit field -->
+        <div class="modal-field-group">
+          <label class="modal-label">🏢 Branch Address (Only updates if Branch is selected)</label>
+          <textarea name="branch_address" id="editAccBranchAddress" placeholder="Full branch physical address" class="form-control modal-input" style="height: 52px; resize: vertical;"></textarea>
+        </div>
+
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Email (Optional)</label>
+            <input type="email" name="email" id="editAccEmail" class="form-control modal-input">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Phone (Optional)</label>
+            <input type="tel" name="phone" id="editAccPhone" class="form-control modal-input">
+          </div>
+        </div>
+        
+        <!-- Permissions Selection -->
+        <div style="margin-bottom: 8px; border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; background: rgba(59, 130, 246, 0.03);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <h4 style="color: var(--text-primary); margin: 0; font-size: 12px; font-weight: 700;">🔐 User Access Permissions (Department / Employees)</h4>
+            <span style="font-size: 10.5px; color: var(--text-muted);">Customizable</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 7px; font-size: 11.5px; color: var(--text-secondary);">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_scan" id="editPermScan" style="accent-color: #3b82f6;"> Scan QR Code
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_raise_query" id="editPermRaiseQuery" style="accent-color: #3b82f6;"> Raise / View My Queries
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_dispatch_queries" id="editPermDispatchQueries" style="accent-color: #3b82f6;"> Dispatch Queries (Admin)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_new_dispatch" id="editPermNewDispatch" style="accent-color: #3b82f6;"> New Dispatch
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_bulk_dispatch" id="editPermBulkDispatch" style="accent-color: #3b82f6;"> Bulk Dispatch
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_view_parcels" id="editPermViewParcels" style="accent-color: #3b82f6;"> View All Parcels
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_overdue" id="editPermOverdue" style="accent-color: #3b82f6;"> Overdue Parcels
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_archive" id="editPermArchive" style="accent-color: #3b82f6;"> Archive
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" name="can_reports" id="editPermReports" style="accent-color: #3b82f6;"> Reports
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-foot">
+        <button type="button" onclick="hideAdminModal('editAccountModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 7px; cursor: pointer; font-size: 13px;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 8px 20px; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(79, 142, 247, 0.3);">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Change Account Credentials Modal -->
+<div class="modal-overlay" id="changeAccCredsModal">
+  <div class="modal-card" style="width: 440px !important;">
+    <div class="modal-head" style="border-bottom: 1px solid rgba(16,185,129,0.2) !important;">
+      <h3>🔑 Change Login ID & Password</h3>
+      <button type="button" class="modal-close-btn" onclick="hideAdminModal('changeAccCredsModal')" title="Close">&times;</button>
+    </div>
+    
+    <form id="changeAccCredsForm" onsubmit="submitChangeAccCreds(event)" class="modal-form-wrap">
+      <input type="hidden" id="credAccUserId">
+      <div class="modal-scroll-content">
+        <div style="margin-bottom: 14px; padding: 10px 12px; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3b82f6;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block;">Modifying credentials for:</span>
+          <span id="credAccTitle" style="font-size: 14px; font-weight: 700; color: #3b82f6;"></span>
+        </div>
+
+        <div class="modal-field-group">
+          <label class="modal-label">Login ID (Username) *</label>
+          <input type="text" id="credAccUsername" name="username" required class="form-control modal-input" style="font-family: monospace;">
+        </div>
+
+        <div class="modal-field-group">
+          <label class="modal-label">New Password <span style="color: var(--text-muted); font-weight: 400;">(leave blank to keep unchanged)</span></label>
+          <input type="password" id="credAccPassword" name="password" class="form-control modal-input" placeholder="Enter new password" style="font-family: monospace;">
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" onclick="hideAdminModal('changeAccCredsModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 7px; cursor: pointer; font-size: 13px;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 8px 20px; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">Update Credentials</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Bulk Import Excel Modal -->
+<div class="modal-overlay" id="importExcelModal">
+  <div class="modal-card" style="width: 480px !important;">
+    <div class="modal-head" style="border-bottom: 1px solid rgba(34,211,238,0.2) !important;">
+      <h3>📥 Bulk Import Accounts from Excel</h3>
+      <button type="button" class="modal-close-btn" onclick="hideAdminModal('importExcelModal')" title="Close">&times;</button>
+    </div>
+    
+    <form action="{{ url_for('admin.import_accounts') }}" method="POST" enctype="multipart/form-data" class="modal-form-wrap">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-scroll-content">
+        <div style="margin-bottom: 14px; background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 12px; font-size: 12px; color: var(--text-secondary);">
+          💡 <strong style="color: #22d3ee;">Auto ID & Password Rule:</strong>
+          <ul style="margin: 6px 0 0 16px; padding: 0;">
+            <li>Login ID = <code style="color: #4f8ef7;">branch_code</code> (lowercase)</li>
+            <li>Password = <code style="color: #10b981;">pincode</code> value in Excel</li>
+            <li>If Pincode is blank, default password = <code style="color: #f59e0b;">Branch@123</code></li>
+          </ul>
+        </div>
+
+        <div class="modal-field-group">
+          <label class="modal-label">Select Excel File (.xlsx) *</label>
+          <input type="file" name="file" accept=".xlsx, .xls" required class="form-control modal-input">
+        </div>
+      </div>
+
+      <div class="modal-foot" style="justify-content: space-between;">
+        <a href="{{ url_for('admin.accounts_template') }}" style="color: #22d3ee; font-size: 12.5px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">📄 Download Template</a>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" onclick="hideAdminModal('importExcelModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 7px; cursor: pointer; font-size: 13px;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #22d3ee, #0284c7); border: none; color: white; padding: 8px 20px; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 13px;">Upload & Import</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Branch Modal -->
+<div class="modal-overlay" id="addBranchModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>➕ Add New Branch</h3>
+      <button type="button" class="modal-close-btn" onclick="hideAdminModal('addBranchModal')" title="Close">&times;</button>
+    </div>
+    
+    <form id="addBranchForm" onsubmit="submitAddBranch(event)" class="modal-form-wrap">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-scroll-content">
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Branch Code (Unique) *</label>
+            <input type="text" name="branch_code" required class="form-control modal-input" placeholder="e.g. JPR" style="text-transform: uppercase;">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Branch Name *</label>
+            <input type="text" name="name" required class="form-control modal-input" placeholder="e.g. Jaipur Branch">
+          </div>
+        </div>
+        
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">City *</label>
+            <input type="text" name="city" required class="form-control modal-input" placeholder="e.g. Jaipur">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">State (for State-wise billing) *</label>
+            <input type="text" name="state" required class="form-control modal-input" placeholder="e.g. Rajasthan">
+          </div>
+        </div>
+        
+        <div class="modal-field-group">
+          <label class="modal-label">Branch Full Address *</label>
+          <textarea name="address" required class="form-control modal-input" placeholder="Enter full physical address of the office" style="height: 52px; resize: vertical;"></textarea>
+        </div>
+
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Pincode *</label>
+            <input type="text" name="pincode" required class="form-control modal-input" placeholder="e.g. 302016">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Phone (Optional)</label>
+            <input type="tel" name="phone" class="form-control modal-input" placeholder="e.g. 0141-XXXXXX">
+          </div>
+        </div>
+
+        <div class="modal-field-group">
+          <label class="modal-label">Branch Email (Optional)</label>
+          <input type="email" name="email" class="form-control modal-input" placeholder="e.g. jaipur@lifc.in">
+        </div>
+      </div>
+      
+      <div class="modal-foot">
+        <button type="button" onclick="hideAdminModal('addBranchModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 7px; cursor: pointer; font-size: 13px;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: white; padding: 8px 20px; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">Create Branch</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Branch Modal -->
+<div class="modal-overlay" id="editBranchModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>✏️ Edit Branch Details</h3>
+      <button type="button" class="modal-close-btn" onclick="hideAdminModal('editBranchModal')" title="Close">&times;</button>
+    </div>
+    
+    <form id="editBranchForm" onsubmit="submitEditBranch(event)" class="modal-form-wrap">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="branch_id" id="editBranchId">
+      
+      <div class="modal-scroll-content">
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Branch Code (Unique) *</label>
+            <input type="text" name="branch_code" id="editBranchCode" required class="form-control modal-input" style="text-transform: uppercase;">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Branch Name *</label>
+            <input type="text" name="name" id="editBranchName" required class="form-control modal-input">
+          </div>
+        </div>
+        
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">City *</label>
+            <input type="text" name="city" id="editBranchCity" required class="form-control modal-input">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">State (for State-wise billing) *</label>
+            <input type="text" name="state" id="editBranchState" required class="form-control modal-input">
+          </div>
+        </div>
+        
+        <div class="modal-field-group">
+          <label class="modal-label">Branch Full Address *</label>
+          <textarea name="address" id="editBranchAddress" required class="form-control modal-input" style="height: 52px; resize: vertical;"></textarea>
+        </div>
+
+        <div class="modal-two-col">
+          <div class="modal-field-group">
+            <label class="modal-label">Pincode *</label>
+            <input type="text" name="pincode" id="editBranchPincode" required class="form-control modal-input">
+          </div>
+          <div class="modal-field-group">
+            <label class="modal-label">Phone (Optional)</label>
+            <input type="tel" name="phone" id="editBranchPhone" class="form-control modal-input">
+          </div>
+        </div>
+
+        <div class="modal-field-group">
+          <label class="modal-label">Branch Email (Optional)</label>
+          <input type="email" name="email" id="editBranchEmail" class="form-control modal-input">
+        </div>
+      </div>
+      
+      <div class="modal-foot">
+        <button type="button" onclick="hideAdminModal('editBranchModal')" class="btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 7px; cursor: pointer; font-size: 13px;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 8px 20px; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(79, 142, 247, 0.3);">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showAdminModal(id) {
+  const modalEl = document.getElementById(id);
+  if(modalEl) {
+    modalEl.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+function hideAdminModal(id) {
+  if(!id) {
+    document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
+    document.body.style.overflow = '';
+  } else {
+    document.getElementById(id)?.classList.remove('active');
+    if(!document.querySelector('.modal-overlay.active')) {
+      document.body.style.overflow = '';
+    }
+  }
+}
+
+function submitAddAccount(e) {
+  e.preventDefault();
+  const form = document.getElementById('addAccountForm');
+  const formData = new FormData(form);
+  
+  fetch("{{ url_for('admin.add_account') }}", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      alert("✅ " + res.message);
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function openEditAccount(id, name, username, role, branchId, departmentId, email, phone, branchAddress, permissionsStr) {
+  document.getElementById('editUserId').value = id;
+  document.getElementById('editAccName').value = name;
+  document.getElementById('editAccUsername').value = username;
+  document.getElementById('editAccRole').value = role;
+  document.getElementById('editAccBranchId').value = branchId;
+  document.getElementById('editAccDepartmentId').value = departmentId;
+  document.getElementById('editAccEmail').value = email;
+  document.getElementById('editAccPhone').value = phone;
+  document.getElementById('editAccBranchAddress').value = branchAddress || '';
+  
+  // Set checkboxes
+  const perms = (permissionsStr || '').split(',');
+  document.getElementById('editPermScan').checked = perms.includes('can_scan');
+  document.getElementById('editPermRaiseQuery').checked = perms.includes('can_raise_query');
+  document.getElementById('editPermDispatchQueries').checked = perms.includes('can_dispatch_queries');
+  document.getElementById('editPermNewDispatch').checked = perms.includes('can_new_dispatch');
+  document.getElementById('editPermBulkDispatch').checked = perms.includes('can_bulk_dispatch');
+  document.getElementById('editPermViewParcels').checked = perms.includes('can_view_parcels');
+  document.getElementById('editPermOverdue').checked = perms.includes('can_overdue');
+  document.getElementById('editPermArchive').checked = perms.includes('can_archive');
+  document.getElementById('editPermReports').checked = perms.includes('can_reports');
+  
+  showAdminModal('editAccountModal');
+}
+
+function updateEditModalBranchAddress(selectEl) {
+  if (!selectEl) return;
+  const selectedOption = selectEl.options[selectEl.selectedIndex];
+  const address = selectedOption ? selectedOption.getAttribute('data-address') : "";
+  const addressField = document.getElementById('editAccBranchAddress');
+  if (addressField) {
+    addressField.value = address || "";
+  }
+}
+
+function submitEditAccount(e) {
+  e.preventDefault();
+  const id = document.getElementById('editUserId').value;
+  const form = document.getElementById('editAccountForm');
+  const formData = new FormData(form);
+  
+  fetch(`/admin/accounts/edit/${id}`, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      hideAdminModal('editAccountModal');
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function changeAccountCreds(id, name, username) {
+  document.getElementById('credAccUserId').value = id;
+  document.getElementById('credAccTitle').textContent = name;
+  document.getElementById('credAccUsername').value = username;
+  document.getElementById('credAccPassword').value = '';
+  showAdminModal('changeAccCredsModal');
+}
+
+function submitChangeAccCreds(e) {
+  e.preventDefault();
+  const id = document.getElementById('credAccUserId').value;
+  const form = document.getElementById('changeAccCredsForm');
+  const formData = new FormData(form);
+  
+  fetch(`/admin/accounts/credentials/${id}`, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      hideAdminModal('changeAccCredsModal');
+      alert("✅ " + res.message);
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function deleteAccount(id, name) {
+  if(!confirm(`⚠️ Are you sure you want to permanently delete Account "${name}"? This action cannot be undone.`)) return;
+  fetch(`/admin/accounts/delete/${id}`, { method: "POST" })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      alert("🗑️ " + res.message);
+      window.location.reload();
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+/* Tabs & Branch Management Functions */
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  
+  const activeEl = document.getElementById(tabName + 'Content');
+  if (activeEl) {
+    activeEl.style.display = 'block';
+  }
+  
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.style.borderBottom = 'none';
+    btn.style.color = 'var(--text-muted)';
+    btn.style.fontWeight = '500';
+  });
+  
+  const activeBtn = document.getElementById('tabBtn' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+  if (activeBtn) {
+    activeBtn.style.borderBottom = '3px solid #4f8ef7';
+    activeBtn.style.color = '#4f8ef7';
+    activeBtn.style.fontWeight = '600';
+  }
+  
+  const url = new URL(window.location);
+  url.searchParams.set('tab', tabName);
+  window.history.pushState({}, '', url);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const activeTab = urlParams.get('tab') || 'accounts';
+  switchTab(activeTab);
+});
+
+function openEditBranch(id, code, name, city, state, address, pincode, phone, email) {
+  document.getElementById('editBranchId').value = id;
+  document.getElementById('editBranchCode').value = code;
+  document.getElementById('editBranchName').value = name;
+  document.getElementById('editBranchCity').value = city;
+  document.getElementById('editBranchState').value = state;
+  document.getElementById('editBranchAddress').value = address;
+  document.getElementById('editBranchPincode').value = pincode;
+  document.getElementById('editBranchPhone').value = phone;
+  document.getElementById('editBranchEmail').value = email;
+  showAdminModal('editBranchModal');
+}
+
+function submitAddBranch(e) {
+  e.preventDefault();
+  const form = document.getElementById('addBranchForm');
+  const formData = new FormData(form);
+  
+  fetch("{{ url_for('admin.add_branch') }}", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      alert("✅ " + res.message);
+      window.location.href = "{{ url_for('admin.accounts') }}?tab=branches";
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function submitEditBranch(e) {
+  e.preventDefault();
+  const id = document.getElementById('editBranchId').value;
+  const form = document.getElementById('editBranchForm');
+  const formData = new FormData(form);
+  
+  fetch(`/admin/branches/edit/${id}`, {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      hideAdminModal('editBranchModal');
+      alert("✅ " + res.message);
+      window.location.href = "{{ url_for('admin.accounts') }}?tab=branches";
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+function deleteBranch(id, name) {
+  if(!confirm(`⚠️ Are you sure you want to permanently delete Branch "${name}"?`)) return;
+  
+  fetch(`/admin/branches/delete/${id}`, {
+    method: "POST"
+  })
+  .then(res => res.json())
+  .then(res => {
+    if(res.success) {
+      alert("🗑️ " + res.message);
+      window.location.href = "{{ url_for('admin.accounts') }}?tab=branches";
+    } else {
+      alert("Error: " + res.message);
+    }
+  })
+  .catch(err => alert("An error occurred"));
+}
+
+// Close modals on Escape key or backdrop click
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hideAdminModal();
+});
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        hideAdminModal(overlay.id);
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

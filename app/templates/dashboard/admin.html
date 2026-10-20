@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+{% block breadcrumb %}Dashboard / Overview{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+  
+  <!-- Stats Row 1 -->
+  <div class="stats-grid animate-slide-up">
+    <a href="{{ url_for('dispatch.dispatch_list') }}" style="text-decoration:none;">
+      <div class="stat-card glass-card blue-accent" style="cursor:pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(79,142,247,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="stat-icon">📦</div>
+        <div class="stat-details">
+          <h3 style="color: var(--text-secondary); margin: 0 0 6px 0; font-size: 14px; font-weight: 500;">Total Parcels</h3>
+          <p class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ stats.total_parcels }}</p>
+          <span style="font-size:11px; color:#4f8ef7;">Click to view all →</span>
+        </div>
+      </div>
+    </a>
+    
+    <a href="{{ url_for('admin.accounts') }}?role=" style="text-decoration:none;">
+      <div class="stat-card glass-card purple-accent" style="cursor:pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(139,92,246,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-details">
+          <h3 style="color: var(--text-secondary); margin: 0 0 6px 0; font-size: 14px; font-weight: 500;">Active Branches</h3>
+          <p class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ stats.total_branches }}</p>
+          <span style="font-size:11px; color:#8b5cf6;">Manage branches →</span>
+        </div>
+      </div>
+    </a>
+    
+    <a href="{{ url_for('dispatch.dispatch_list') }}?status=delivered" style="text-decoration:none;">
+      <div class="stat-card glass-card green-accent" style="cursor:pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(16,185,129,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="stat-icon">✅</div>
+        <div class="stat-details">
+          <h3 style="color: var(--text-secondary); margin: 0 0 6px 0; font-size: 14px; font-weight: 500;">Delivered Today</h3>
+          <p class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ stats.delivered_today }}</p>
+          <span style="font-size:11px; color:#10b981;">View delivered →</span>
+        </div>
+      </div>
+    </a>
+  </div>
+  
+  <!-- Stats Row 2 -->
+  <div class="stats-grid-sm animate-slide-up" style="margin-top: 20px;">
+    <a href="{{ url_for('dispatch.dispatch_list') }}?status=pending" style="text-decoration:none;">
+      <div class="stat-card glass-card" style="cursor:pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(234,179,8,0.25)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="stat-icon" style="font-size: 20px;">🟡</div>
+        <div class="stat-details">
+          <h3 style="font-size: 12px; color: var(--text-secondary); margin: 0 0 4px 0;">Pending</h3>
+          <p class="stat-value" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ stats.pending }}</p>
+        </div>
+      </div>
+    </a>
+    <a href="{{ url_for('dispatch.overdue_list') }}" style="text-decoration:none;">
+      <div class="stat-card glass-card" style="cursor:pointer; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid rgba(239,68,68,0.3);" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(239,68,68,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="stat-icon" style="font-size: 20px;">⏰</div>
+        <div class="stat-details">
+          <h3 style="font-size: 12px; color: #ef4444; margin: 0 0 4px 0; font-weight: 700;">Overdue</h3>
+          <p class="stat-value" style="font-size: 18px; font-weight: 700; color: {% if stats.overdue > 0 %}#ef4444{% else %}var(--text-primary){% endif %}; margin: 0;">{{ stats.overdue }}</p>
+        </div>
+      </div>
+    </a>
+    <a href="{{ url_for('dispatch.dispatch_list') }}?status=failed" style="text-decoration:none;">
+      <div class="stat-card glass-card" style="cursor:pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(239,68,68,0.2)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="stat-icon" style="font-size: 20px;">🔴</div>
+        <div class="stat-details">
+          <h3 style="font-size: 12px; color: var(--text-secondary); margin: 0 0 4px 0;">Failed</h3>
+          <p class="stat-value" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0;">{{ stats.failed }}</p>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Bottom Row -->
+  <div class="bottom-row animate-slide-up" style="margin-top: 24px; grid-template-columns: 1fr;">
+    
+    <!-- Branch Performance Chart -->
+    <div class="branch-performance glass-card" style="padding: 24px; border-radius: 12px; width: 100%; box-sizing: border-box;">
+      <h3 style="margin-top: 0; color: var(--text-primary); font-size: 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <span>📊</span> Branch Performance Analytics
+      </h3>
+      <div style="width: 100%; height: 380px; position: relative;">
+        <canvas id="branchPerformanceChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+  // Extract branch performance stats from Jinja template
+  const branchNames = [{% for b in branch_stats %}"{{ b.name }}",{% endfor %}];
+  const branchTotals = [{% for b in branch_stats %}{{ b.total }},{% endfor %}];
+  const branchDelivered = [{% for b in branch_stats %}{{ b.delivered }},{% endfor %}];
+  const branchRates = [{% for b in branch_stats %}{{ b.rate }},{% endfor %}];
+
+  // Render Grouped Bar Chart
+  const ctx = document.getElementById('branchPerformanceChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: branchNames,
+      datasets: [
+        {
+          label: 'Total Dispatched',
+          data: branchTotals,
+          backgroundColor: 'rgba(79, 142, 247, 0.75)',
+          borderColor: '#4f8ef7',
+          borderWidth: 1.5,
+          borderRadius: 6,
+          barPercentage: 0.6,
+          categoryPercentage: 0.6
+        },
+        {
+          label: 'Delivered',
+          data: branchDelivered,
+          backgroundColor: 'rgba(16, 185, 129, 0.75)',
+          borderColor: '#10b981',
+          borderWidth: 1.5,
+          borderRadius: 6,
+          barPercentage: 0.6,
+          categoryPercentage: 0.6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#e8eaf6',
+            boxWidth: 15,
+            padding: 15,
+            font: {
+              family: 'Inter',
+              size: 12,
+              weight: '500'
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          titleColor: '#e8eaf6',
+          bodyColor: '#e8eaf6',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          padding: 12,
+          boxPadding: 6,
+          callbacks: {
+            footer: (tooltipItems) => {
+              const index = tooltipItems[0].dataIndex;
+              return `Delivery Rate: ${branchRates[index]}%`;
+            }
+          },
+          footerColor: '#22d3ee',
+          footerFont: {
+            weight: 'bold'
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(255, 255, 255, 0.05)',
+            drawBorder: false
+          },
+          ticks: {
+            color: '#94a3b8',
+            font: {
+              family: 'Inter',
+              size: 11
+            }
+          }
+        },
+        y: {
+          grid: {
+            color: 'rgba(255, 255, 255, 0.05)',
+            drawBorder: false
+          },
+          ticks: {
+            color: '#94a3b8',
+            font: {
+              family: 'Inter',
+              size: 11
+            },
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

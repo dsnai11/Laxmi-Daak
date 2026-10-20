@@ -1,0 +1,362 @@
+{% extends 'base.html' %}
+
+{% block title %}Parcel {{ parcel.tracking_number }}{% endblock %}
+{% block page_title %}Parcel Details{% endblock %}
+{% block breadcrumb %}Parcels / {{ parcel.tracking_number }}{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+
+  <!-- Header Row -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+      <div class="tracking-number" style="font-size:22px;">{{ parcel.tracking_number }}</div>
+      <div style="margin-top:6px;">
+        <span class="badge badge-{{ parcel.status }}">{{ parcel.status_label }}</span>
+        <span class="badge" style="background:rgba(139,92,246,0.15);color:#8b5cf6;margin-left:8px;">{{ parcel.priority_label }}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="{{ url_for('dispatch.dispatch_list') }}" class="btn btn-ghost">← Back to List</a>
+      {% if current_user.role == 'superadmin' or parcel.created_by == current_user.id %}
+      <a href="{{ url_for('dispatch.edit_dispatch', tracking_number=parcel.tracking_number) }}" class="btn btn-success" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: white; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">✏️ Edit Dispatch</a>
+      {% if parcel.status in ['delivered', 'closed', 'failed', 'returned'] and not parcel.is_archived %}
+      <button onclick="archiveThisParcel('{{ parcel.id }}')" class="btn btn-ghost" style="background: rgba(100,116,139,0.12); border: 1px solid rgba(100,116,139,0.3); color: #94a3b8; display:inline-flex; align-items:center; gap:6px; font-weight:600;">🗄️ Archive</button>
+      {% endif %}
+      {% endif %}
+      <a href="{{ url_for('tracking.track_home') }}?q={{ parcel.tracking_number }}" class="btn btn-primary" target="_blank">🗺️ Track</a>
+      <a href="{{ url_for('dispatch.dispatch_success', tracking_number=parcel.tracking_number) }}" class="btn btn-ghost">🏷️ QR Label</a>
+      {% if parcel.transfer_mode == 'by_courier' and parcel.courier_partner == 'Pushpak' %}
+      {% if parcel.pushpak_booking_status != 'booked' %}
+      <button onclick="bookWithPushpak({{ parcel.id }})" class="btn btn-primary" style="background: linear-gradient(135deg, #f97316, #ea580c); border: none; color: white; display:inline-flex; align-items:center; gap:6px; font-weight:600;" id="pushpakBookBtn">🚀 Book with Pushpak</button>
+      {% else %}
+      <span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; padding: 8px 14px; font-size: 13px; border-radius: 8px;">✅ Pushpak Booked{% if parcel.pushpak_doc_no %} ({{ parcel.pushpak_doc_no }}){% endif %}</span>
+      {% endif %}
+      {% if parcel.courier_id %}
+      <button onclick="trackOnPushpak('{{ parcel.courier_id }}')" class="btn btn-ghost" style="background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.3); color: #22d3ee; display:inline-flex; align-items:center; gap:6px; font-weight:600;">📡 Track on Pushpak</button>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Transit Path Hierarchy Overview -->
+  {% if scan_history %}
+  <div class="glass-card" style="padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+    <h3 style="margin-top: 0; color: var(--text-primary); font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+      <span>📍</span> Transit Path Hierarchy Overview
+    </h3>
+    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 12px; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--glass-border);">
+      {% for scan in scan_history %}
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="background: var(--bg-card); border: 1px solid var(--glass-border); padding: 10px 14px; border-radius: 8px; display: flex; flex-direction: column; min-width: 140px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+          <span style="font-weight: 700; color: var(--text-primary); font-size: 14px; display: flex; align-items: center; gap: 6px;">
+            <span>{{ scan.action_icon }}</span> {{ scan.branch_name }}
+          </span>
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; margin-top: 4px;">{{ scan.action_label }}</span>
+          <span style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;"><span data-utc="{{ scan.timestamp.isoformat() }}Z">{{ scan.timestamp.strftime('%d %b, %I:%M %p') }}</span></span>
+          <span style="font-size: 10px; color: var(--text-muted); margin-top: 2px; font-style: italic;">By: {{ scan.employee_name }}</span>
+        </div>
+        {% if not loop.last %}
+        <div style="font-size: 20px; color: var(--accent-blue); font-weight: bold; animation: pulse 2s infinite;">➔</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:20px;">
+
+    <!-- Sender Info -->
+    <div class="glass-card">
+      <div class="card-header">
+        <h3 class="card-title">📤 Sender Information</h3>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div><span class="form-label">Name</span><div style="font-size:15px;font-weight:600;">{{ parcel.sender_name }}</div></div>
+        <div><span class="form-label">Phone</span><div>{{ parcel.sender_phone or '—' }}</div></div>
+        <div><span class="form-label">Email</span><div>{{ parcel.sender_email or '—' }}</div></div>
+        <div><span class="form-label">Address</span><div>{{ parcel.sender_address or '—' }}</div></div>
+        {% if parcel.sender_branch %}
+        <div><span class="form-label">Branch</span><div><span class="badge badge-in_transit">{{ parcel.sender_branch.name }}</span></div></div>
+        {% endif %}
+        {% if parcel.sender_department_name %}
+        <div><span class="form-label">Department</span><div><span class="badge badge-pending" style="background: rgba(34,211,238,0.15); color: #22d3ee;">📂 {{ parcel.sender_department_name }}</span></div></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Receiver Info -->
+    <div class="glass-card">
+      <div class="card-header">
+        <h3 class="card-title">📥 Receiver Information</h3>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div><span class="form-label">Name</span><div style="font-size:15px;font-weight:600;">{{ parcel.receiver_name }}</div></div>
+        <div><span class="form-label">Phone</span><div>{{ parcel.receiver_phone or '—' }}</div></div>
+        <div><span class="form-label">Email</span><div>{{ parcel.receiver_email or '—' }}</div></div>
+        <div><span class="form-label">Address</span><div>{{ parcel.receiver_address or '—' }}</div></div>
+        {% if parcel.receiver_branch %}
+        <div><span class="form-label">Destination Branch</span><div><span class="badge badge-delivered">{{ parcel.receiver_branch.name }}</span></div></div>
+        {% endif %}
+        {% if parcel.receiver_department_name %}
+        <div><span class="form-label">Destination Department</span><div><span class="badge badge-pending" style="background: rgba(34,211,238,0.15); color: #22d3ee;">📂 {{ parcel.receiver_department_name }}</span></div></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:20px;">
+
+    <!-- Package Details -->
+    <div class="glass-card">
+      <div class="card-header"><h3 class="card-title">📦 Package Details</h3></div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div><span class="form-label">Description</span><div>{{ parcel.description or '—' }}</div></div>
+        <div><span class="form-label">Weight</span><div>{{ parcel.weight }} kg</div></div>
+        <div><span class="form-label">Mode of Transfer</span><div><span style="font-weight:600;color:var(--accent-blue)">{{ parcel.transfer_mode_label }}</span></div></div>
+        {% if parcel.transfer_mode == 'by_courier' and parcel.courier_partner %}
+        <div><span class="form-label">Courier Partner</span><div><span style="font-weight:600;color:#10b981">🚚 {{ parcel.courier_partner }}</span></div></div>
+        {% endif %}
+        {% if parcel.transfer_mode == 'by_courier' and parcel.courier_id %}
+        <div><span class="form-label">Courier Tracking ID / Docket No.</span><div><span style="font-family:monospace;font-weight:600;color:#22d3ee">{{ parcel.courier_id }}</span></div></div>
+        {% endif %}
+        {% if parcel.transfer_mode == 'by_courier' and parcel.courier_partner == 'Pushpak' and parcel.pushpak_booking_status %}
+        <div><span class="form-label">Pushpak Booking Status</span><div><span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; font-weight: 700;">{{ parcel.pushpak_booking_status|upper }}</span></div></div>
+        {% endif %}
+        {% if parcel.pushpak_doc_no %}
+        <div><span class="form-label">Pushpak Doc No</span><div><span style="font-family:monospace;font-weight:600;color:#f97316">{{ parcel.pushpak_doc_no }}</span></div></div>
+        {% endif %}
+        {% if parcel.transfer_mode == 'by_bus' %}
+          {% if parcel.bus_number %}
+          <div><span class="form-label">Bus Number</span><div><span style="font-weight:600;color:#f59e0b">🚌 {{ parcel.bus_number }}</span></div></div>
+          {% endif %}
+          {% if parcel.driver_phone %}
+          <div><span class="form-label">Driver Calling / Mobile Number</span><div><span style="font-weight:600;color:#22d3ee">📞 {{ parcel.driver_phone }}</span></div></div>
+          {% endif %}
+        {% endif %}
+        {% if parcel.transfer_mode == 'by_hand' %}
+          {% if parcel.hand_carry_name %}
+          <div><span class="form-label">In Hand Person Name</span><div><span style="font-weight:600;color:#8b5cf6">👤 {{ parcel.hand_carry_name }}</span></div></div>
+          {% endif %}
+          {% if parcel.hand_carry_phone %}
+          <div><span class="form-label">In Hand Person Mobile Number</span><div><span style="font-weight:600;color:#22d3ee">📞 {{ parcel.hand_carry_phone }}</span></div></div>
+          {% endif %}
+        {% endif %}
+        {% if parcel.billing_amount %}
+        <div><span class="form-label">Billing Amount</span><div><span style="font-weight:700;color:#10b981;font-size:16px;">₹{{ "%.2f"|format(parcel.billing_amount) }}</span></div></div>
+        {% endif %}
+        {% if parcel.special_instructions %}
+        <div><span class="form-label">Special Instructions</span><div>{{ parcel.special_instructions }}</div></div>
+        {% endif %}
+        <div><span class="form-label">Dispatched At</span><div>{% if parcel.dispatched_at %}<span data-utc="{{ parcel.dispatched_at.isoformat() }}Z" data-format="full">{{ parcel.dispatched_at.strftime('%d %b %Y, %I:%M %p') }}</span>{% else %}—{% endif %}</div></div>
+        {% if parcel.delivered_at %}
+        <div><span class="form-label">Delivered At</span><div style="color:#10b981;"><span data-utc="{{ parcel.delivered_at.isoformat() }}Z" data-format="full">{{ parcel.delivered_at.strftime('%d %b %Y, %I:%M %p') }}</span></div></div>
+        {% endif %}
+        {% if parcel.current_branch %}
+        <div><span class="form-label">Current Location</span><div><span class="badge badge-in_transit">📍 {{ parcel.current_branch.name }}</span></div></div>
+        {% endif %}
+      </div>
+
+      <!-- QR Code -->
+      {% if parcel.qr_code_path %}
+      <div style="text-align:center;margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);">
+        <img src="{{ parcel.qr_code_path }}" alt="QR Code" class="qr-image" style="width:140px;height:140px;">
+        <div style="font-size:12px;color:#64748b;margin-top:8px;">Scan to track</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Scan History Timeline -->
+    <div class="glass-card">
+      <div class="card-header">
+        <h3 class="card-title">📋 Scan History</h3>
+        <span style="font-size:13px;color:#64748b;">{{ scan_history|length }} events</span>
+      </div>
+
+      {% if scan_history %}
+      <div class="timeline">
+        {% for scan in scan_history %}
+        <div class="timeline-item {{ scan.action }}">
+          <div class="timeline-content">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+              <span style="font-size:15px;">{{ scan.action_icon }} <strong>{{ scan.action_label }}</strong></span>
+              <span class="timeline-time" data-utc="{{ scan.timestamp.isoformat() }}Z">{{ scan.timestamp.strftime('%d %b, %I:%M %p') }}</span>
+            </div>
+            <div class="timeline-branch">🏢 {{ scan.branch_name }}</div>
+            <div class="timeline-employee">👤 {{ scan.employee_name }}</div>
+            {% if scan.notes %}
+            <div style="font-size:12px;color:#64748b;margin-top:4px;font-style:italic;">"{{ scan.notes }}"</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div style="font-size:40px;margin-bottom:12px;">📋</div>
+        <div>No scan history yet</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Photos -->
+  {% if parcel.photos %}
+  <div class="glass-card" style="margin-top:20px;">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 class="card-title" style="margin:0;">📷 Package Photos</h3>
+      <span style="font-size:12px; color:var(--accent-blue); font-weight:500;">🔍 Click any photo to zoom in/out</span>
+    </div>
+    <div class="photo-preview-grid" style="display:flex; gap:14px; flex-wrap:wrap; margin-top:14px;">
+      {% for photo in parcel.photos %}
+      <div class="photo-preview-item" style="width:120px; height:120px; border-radius:8px; overflow:hidden; border:2px solid var(--glass-border); cursor:zoom-in; transition:transform 0.2s, box-shadow 0.2s;"
+           onmouseover="this.style.transform='scale(1.05)';this.style.boxShadow='0 6px 20px rgba(79,142,247,0.35)';"
+           onmouseout="this.style.transform='scale(1)';this.style.boxShadow='none';"
+           onclick="openImageZoomModal('{{ photo }}', 'Parcel {{ parcel.tracking_number }} Photo')">
+        <img src="{{ photo }}" alt="Package photo" style="width:100%; height:100%; object-fit:cover; display:block;">
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const _detailCsrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+function archiveThisParcel(parcelId) {
+  if (!confirm('Archive this parcel? It will be hidden from the main parcels list and moved to the Archive section.')) return;
+  fetch(`/dispatch/archive/${parcelId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _detailCsrf }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      window.location.href = '/dispatch/list';
+    } else {
+      alert('Error: ' + (data.message || 'Could not archive parcel'));
+    }
+  });
+}
+
+const _pushpakCsrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+function bookWithPushpak(parcelId) {
+  if (!confirm('Book this parcel with Pushpak Courier API?')) return;
+  const btn = document.getElementById('pushpakBookBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Booking...'; }
+  
+  fetch(`/api/pushpak/book/${parcelId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _pushpakCsrf }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message + (data.doc_no ? '\nDoc No: ' + data.doc_no : ''));
+      window.location.reload();
+    } else {
+      alert('❌ ' + data.message);
+      if (btn) { btn.disabled = false; btn.innerHTML = '🚀 Book with Pushpak'; }
+    }
+  })
+  .catch(err => {
+    alert('Error: ' + err.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '🚀 Book with Pushpak'; }
+  });
+}
+
+function trackOnPushpak(docketNo) {
+  // Open a modal or section with Pushpak tracking data
+  const overlay = document.createElement('div');
+  overlay.id = 'pushpakTrackOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-secondary);border:1px solid var(--glass-border);border-radius:16px;width:90%;max-width:700px;max-height:85vh;overflow-y:auto;padding:24px;position:relative;box-shadow:0 25px 50px rgba(0,0,0,0.5);">
+      <button onclick="document.getElementById('pushpakTrackOverlay').remove()" style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;">&times;</button>
+      <h3 style="margin:0 0 16px;color:var(--text-primary);font-size:18px;">📡 Pushpak Live Tracking — ${docketNo}</h3>
+      <div id="pushpakTrackContent" style="color:var(--text-secondary);">
+        <div style="text-align:center;padding:40px;"><span style="font-size:32px;">⏳</span><p>Fetching tracking data from Pushpak...</p></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  
+  fetch(`/api/pushpak/track/${docketNo}`)
+  .then(r => r.json())
+  .then(data => {
+    const container = document.getElementById('pushpakTrackContent');
+    if (!data.success) {
+      container.innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444;"><span style="font-size:32px;">❌</span><p>${data.message}</p></div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Sender/Recipient info
+    if (data.sender || data.recipient) {
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">';
+      if (data.sender) {
+        html += '<div style="background:var(--bg-primary);padding:12px;border-radius:8px;border:1px solid var(--glass-border);">';
+        html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Sender</div>';
+        html += '<div style="font-weight:600;color:var(--text-primary);">' + (data.sender.name || '—') + '</div>';
+        html += '<div style="font-size:12px;color:var(--text-secondary);">' + (data.sender.address || '') + '</div>';
+        html += '</div>';
+      }
+      if (data.recipient) {
+        html += '<div style="background:var(--bg-primary);padding:12px;border-radius:8px;border:1px solid var(--glass-border);">';
+        html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Recipient</div>';
+        html += '<div style="font-weight:600;color:var(--text-primary);">' + (data.recipient.name || '—') + '</div>';
+        html += '<div style="font-size:12px;color:var(--text-secondary);">' + (data.recipient.address || '') + '</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Transit History Timeline
+    if (data.transit_history && data.transit_history.length > 0) {
+      html += '<h4 style="margin:0 0 12px;color:var(--text-primary);font-size:15px;">🗺️ Transit History</h4>';
+      html += '<div style="position:relative;padding-left:28px;">';
+      html += '<div style="position:absolute;top:0;bottom:0;left:10px;width:2px;background:var(--glass-border);"></div>';
+      data.transit_history.forEach((event, i) => {
+        const isLast = i === data.transit_history.length - 1;
+        const dotColor = event.type === '5' ? '#10b981' : (isLast ? '#4f8ef7' : 'var(--glass-border)');
+        html += '<div style="position:relative;margin-bottom:16px;">';
+        html += '<div style="position:absolute;left:-22px;top:4px;width:10px;height:10px;border-radius:50%;background:' + dotColor + ';border:2px solid ' + dotColor + ';"></div>';
+        html += '<div style="background:var(--bg-primary);border:1px solid var(--glass-border);padding:12px;border-radius:8px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+        html += '<span style="font-weight:600;color:var(--text-primary);">' + event.type_icon + ' ' + event.type_label + '</span>';
+        html += '<span style="font-size:11px;color:var(--text-muted);">' + (event.date || '') + ' ' + (event.time || '') + '</span>';
+        html += '</div>';
+        if (event.location) html += '<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">📍 ' + event.location + '</div>';
+        if (event.remarks) html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;font-style:italic;">' + event.remarks + '</div>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div style="text-align:center;padding:20px;color:var(--text-muted);"><span style="font-size:24px;">📋</span><p>No transit history available yet.</p></div>';
+    }
+    
+    // POD Data
+    if (data.pod_data && data.pod_data.delivered_to) {
+      html += '<div style="margin-top:16px;padding:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;">';
+      html += '<h4 style="margin:0 0 8px;color:#10b981;font-size:14px;">✅ Proof of Delivery</h4>';
+      html += '<div style="font-size:13px;color:var(--text-primary);">Delivered to: <strong>' + data.pod_data.delivered_to + '</strong></div>';
+      if (data.pod_data.relation) html += '<div style="font-size:12px;color:var(--text-secondary);">Relation: ' + data.pod_data.relation + '</div>';
+      if (data.pod_data.date) html += '<div style="font-size:12px;color:var(--text-secondary);">Date: ' + data.pod_data.date + '</div>';
+      html += '</div>';
+    }
+    
+    container.innerHTML = html;
+  })
+  .catch(err => {
+    document.getElementById('pushpakTrackContent').innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444;"><span style="font-size:32px;">❌</span><p>Error: ${err.message}</p></div>`;
+  });
+}
+</script>
+{% endblock %}

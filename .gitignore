@@ -1,0 +1,68 @@
+# ========================
+# Python
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.env
+
+# ========================
+# Flask / App
+# ========================
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================
+# Virtual Environment
+# ========================
+venv/
+env/
+.venv/
+.env/
+
+# ========================
+# IDE & OS
+# ========================
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Debug / Dev scripts (not needed in repo)
+# ========================
+check_*.py
+inspect_*.py
+verify_*.py
+search_*.py
+find_*.py
+view_*.py
+tmp_*.py
+test_*.py
+run_full_qa.py
+deploy_and_run_qa.py
+deploy_fixes.py
+deploy_pending_fix.py
+remote_helper.py
+sync_from_remote.py
+migrate_*.py
+scratch/
+task.md
+
+# ========================
+# Logs & temp
+# ========================
+*.log
+logs/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/

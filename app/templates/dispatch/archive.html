@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}Archive{% endblock %}
+{% block page_title %}📦 Archive{% endblock %}
+{% block breadcrumb %}Archive / Delivered Parcels{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+
+  <!-- Header -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="margin:0; color:var(--text-primary); font-size:20px; display:flex; align-items:center; gap:10px;">
+        🗄️ Archive
+        <span style="background:rgba(100,116,139,0.15); color:#64748b; font-size:12px; padding:4px 10px; border-radius:20px; font-weight:600;">
+          {{ parcels.total }} parcels
+        </span>
+      </h2>
+      <p style="margin:6px 0 0; color:var(--text-muted); font-size:13px;">Delivered & closed parcels moved to archive — hidden from main list.</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="{{ url_for('dispatch.dispatch_list') }}" class="btn btn-ghost">← Back to Parcels</a>
+      {% if current_user.role == 'superadmin' and parcels.total > 0 %}
+      <button onclick="confirmDeleteAll({{ parcels.total }})" id="deleteAllBtn"
+        style="background:#ef4444; border:none; color:white; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(239,68,68,0.3); transition:all 0.2s;"
+        onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+        🗑️ Delete All Archive
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Delete All Confirmation Modal -->
+  <div id="deleteAllModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+    <div style="background:var(--bg-secondary,#1e293b); border:1px solid rgba(239,68,68,0.4); border-radius:16px; padding:32px; max-width:440px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.5); text-align:center;">
+      <div style="font-size:48px; margin-bottom:16px;">🗑️</div>
+      <h3 style="margin:0 0 10px; color:#ef4444; font-size:18px; font-weight:800;">Delete All Archived Parcels?</h3>
+      <p style="margin:0 0 8px; color:var(--text-secondary,#94a3b8); font-size:14px;">This will permanently delete <strong id="deleteCount" style="color:#ef4444;"></strong> archived parcels.</p>
+      <p style="margin:0 0 24px; color:#f59e0b; font-size:12px; font-weight:600;">⚠️ This action cannot be undone!</p>
+      <div style="display:flex; gap:12px; justify-content:center;">
+        <button onclick="closeDeleteModal()" style="padding:10px 24px; border-radius:8px; border:1px solid var(--glass-border); background:transparent; color:var(--text-primary); font-size:14px; font-weight:600; cursor:pointer;">Cancel</button>
+        <button onclick="executeDeleteAll()" id="confirmDeleteBtn" style="padding:10px 24px; border-radius:8px; border:none; background:#ef4444; color:white; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(239,68,68,0.3);">Yes, Delete All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="glass-card" style="padding:16px 20px; border-radius:12px; margin-bottom:20px;">
+    <form method="GET" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <input type="text" name="search" value="{{ search }}" placeholder="Search by tracking no., sender, receiver…"
+        style="flex:1; min-width:220px; background:var(--bg-primary); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:8px; padding:10px 14px; font-size:13px;">
+      <button type="submit" class="btn btn-primary" style="padding:10px 20px; font-size:13px;">🔍 Search</button>
+      {% if search %}<a href="{{ url_for('dispatch.archive_list') }}" class="btn btn-ghost" style="padding:10px 16px; font-size:13px;">✕ Clear</a>{% endif %}
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="glass-card" style="border-radius:12px; overflow:hidden;">
+    <div class="table-responsive">
+      <table class="data-table" style="width:100%; text-align:left; border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--glass-border);">
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600;">TRACKING NO.</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600;">SENDER</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600;">RECEIVER</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600;">ROUTE</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600;">STATUS</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600;">ARCHIVED ON</th>
+            <th style="padding:14px 16px; color:var(--text-muted); font-size:12px; font-weight:600; text-align:right;">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in parcels.items %}
+          <tr id="archive-row-{{ p.id }}" style="border-bottom:1px solid var(--glass-border); opacity:0.85; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
+            <td style="padding:14px 16px;">
+              <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}"
+                style="color:var(--accent-blue); font-weight:600; font-size:13px; text-decoration:none; font-family:monospace;">
+                {{ p.tracking_number }}
+              </a>
+            </td>
+            <td style="padding:14px 16px; font-size:13px; color:var(--text-primary);">
+              <div style="font-weight:500;">{{ p.sender_name }}</div>
+              {% if p.sender_department_name %}
+              <div style="font-size:11px; color:#22d3ee;">{{ p.sender_department_name }}</div>
+              {% endif %}
+            </td>
+            <td style="padding:14px 16px; font-size:13px; color:var(--text-primary);">
+              <div style="font-weight:500;">{{ p.receiver_name }}</div>
+              {% if p.receiver_department_name %}
+              <div style="font-size:11px; color:#22d3ee;">{{ p.receiver_department_name }}</div>
+              {% endif %}
+            </td>
+            <td style="padding:14px 16px; font-size:13px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-weight:600; color:var(--text-primary);">{{ p.sender_branch.branch_code if p.sender_branch else '—' }}</span>
+                <span style="color:var(--text-muted);">→</span>
+                <span style="font-weight:600; color:var(--text-primary);">{{ p.receiver_branch.branch_code if p.receiver_branch else (p.receiver_branch_name or '—') }}</span>
+              </div>
+            </td>
+            <td style="padding:14px 16px;">
+              <span class="badge badge-{{ p.status }}">{{ p.status_label }}</span>
+            </td>
+            <td style="padding:14px 16px; font-size:12px; color:var(--text-muted);">
+              {% if p.archived_at %}
+              <span data-utc="{{ p.archived_at.isoformat() }}Z">{{ p.archived_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td style="padding:14px 16px; text-align:right;">
+              <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}"
+                  style="background:var(--bg-card); border:1px solid var(--glass-border); color:var(--text-primary); width:32px; height:32px; border-radius:6px; display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:15px;" title="View Details">👁️</a>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" style="text-align:center; padding:50px; color:var(--text-muted);">
+              <div style="font-size:36px; margin-bottom:12px;">🗄️</div>
+              <div style="font-size:15px; font-weight:500;">Archive is empty</div>
+              <div style="font-size:13px; margin-top:6px;">Delivered parcels will appear here after being archived.</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if parcels.total > 0 %}
+    <div style="padding:16px; border-top:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center;">
+      <div style="color:var(--text-muted); font-size:12px;">Showing {{ parcels.items|length }} of {{ parcels.total }} archived parcels</div>
+      <div style="display:flex; gap:8px;">
+        {% if parcels.has_prev %}
+        <a href="{{ url_for('dispatch.archive_list', page=parcels.prev_num, search=search) }}" class="btn btn-sm" style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--glass-border); padding:6px 12px; border-radius:4px; text-decoration:none; font-size:13px;">Prev</a>
+        {% endif %}
+        <span style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--glass-border); padding:6px 12px; border-radius:4px; font-size:13px;">{{ parcels.page }}/{{ parcels.pages }}</span>
+        {% if parcels.has_next %}
+        <a href="{{ url_for('dispatch.archive_list', page=parcels.next_num, search=search) }}" class="btn btn-sm" style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--glass-border); padding:6px 12px; border-radius:4px; text-decoration:none; font-size:13px;">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+function unarchiveParcel(parcelId) {
+  if (!confirm('Restore this parcel to the active list?')) return;
+  fetch(`/dispatch/unarchive/${parcelId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const row = document.getElementById(`archive-row-${parcelId}`);
+      if (row) { row.style.transition = 'opacity 0.4s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 400); }
+      showToast('✅ Parcel restored to active list!', 'success');
+    } else {
+      showToast('❌ ' + (data.message || 'Error'), 'error');
+    }
+  });
+}
+
+function confirmDeleteAll(count) {
+  document.getElementById('deleteCount').textContent = count;
+  const modal = document.getElementById('deleteAllModal');
+  modal.style.display = 'flex';
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteAllModal').style.display = 'none';
+}
+
+function executeDeleteAll() {
+  const btn = document.getElementById('confirmDeleteBtn');
+  btn.textContent = 'Deleting...';
+  btn.disabled = true;
+  fetch('/dispatch/archive/delete-all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+  })
+  .then(r => r.json())
+  .then(data => {
+    closeDeleteModal();
+    if (data.success) {
+      showToast('🗑️ ' + (data.message || 'All archived parcels deleted!'), 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showToast('❌ ' + (data.message || 'Error deleting'), 'error');
+      btn.textContent = 'Yes, Delete All';
+      btn.disabled = false;
+    }
+  })
+  .catch(() => {
+    closeDeleteModal();
+    showToast('❌ Network error. Please try again.', 'error');
+    btn.textContent = 'Yes, Delete All';
+    btn.disabled = false;
+  });
+}
+
+// Close modal on outside click
+document.getElementById('deleteAllModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${type==='success'?'#10b981':'#ef4444'};color:white;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);animation:fadeIn 0.3s ease;`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+{% endblock %}

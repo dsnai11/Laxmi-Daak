@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Dispatch Success{% endblock %}
+{% block page_title %}Success{% endblock %}
+
+{% block content %}
+<div class="success-container animate-fade-in" style="max-width: 600px; margin: 40px auto; text-align: center;">
+  
+  <div class="success-animation" style="font-size: 72px; margin-bottom: 16px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    ✅
+  </div>
+  
+  <h1 style="color: var(--text-primary); margin: 0 0 8px 0; font-size: 28px;">File Dispatched Successfully!</h1>
+  <p style="color: var(--text-secondary); font-size: 15px; margin-bottom: 32px;">The parcel has been registered and is ready for transit.</p>
+  
+  <div class="glass-card tracking-card" style="padding: 32px; border-radius: 16px; margin-bottom: 32px; position: relative; overflow: hidden; border: 1px solid var(--glass-border);">
+    <!-- Gradient background effect -->
+    <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(79,142,247,0.1) 0%, transparent 60%); z-index: 0; pointer-events: none;"></div>
+    
+    <div style="position: relative; z-index: 1;">
+      <p style="color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 8px 0;">Tracking Number</p>
+      <div class="tracking-number" style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #4f8ef7, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 24px; letter-spacing: 4px; display: inline-block;">
+        {{ tracking_number }}
+      </div>
+      
+      <div class="qr-container" style="background: white; padding: 16px; border-radius: 8px; display: inline-block; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 1px solid var(--glass-border);">
+        <img src="{{ parcel.qr_code_path }}" alt="QR Code" style="width: 150px; height: 150px; display: block;">
+      </div>
+      
+      <div class="parcel-summary" style="text-align: left; background: var(--bg-primary); padding: 16px; border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; border: 1px solid var(--glass-border);">
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">From</div>
+          <div style="color: var(--text-primary); font-size: 13px; font-weight: 500;">{{ parcel.sender_name }}</div>
+          <div style="color: var(--text-secondary); font-size: 12px;">{{ parcel.sender_branch.name if parcel.sender_branch else 'HQ' }}</div>
+        </div>
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">To</div>
+          <div style="color: var(--text-primary); font-size: 13px; font-weight: 500;">{{ parcel.receiver_name }}</div>
+          <div style="color: var(--text-secondary); font-size: 12px;">{{ parcel.receiver_branch.name if parcel.receiver_branch else 'HQ' }}</div>
+        </div>
+        <div style="grid-column: span 2; border-top: 1px dashed var(--glass-border); padding-top: 8px;">
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Delivery Address</div>
+          <div style="color: var(--text-primary); font-size: 13px; font-weight: 500; white-space: pre-line;">{{ parcel.receiver_address or '—' }}</div>
+        </div>
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Priority</div>
+          <div style="color: {% if parcel.priority.lower() == 'urgent' or parcel.priority.lower() == 'express' %}#ef4444{% else %}#f59e0b{% endif %}; font-size: 13px; font-weight: 500; text-transform: capitalize;">{{ parcel.priority }}</div>
+        </div>
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Status</div>
+          <div style="color: #4f8ef7; font-size: 13px; font-weight: 500; text-transform: capitalize;">{{ parcel.status_label }}</div>
+        </div>
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Weight</div>
+          <div style="color: var(--text-primary); font-size: 13px; font-weight: 500;">{{ parcel.weight }} kg</div>
+        </div>
+        <div>
+          <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 600;">Billing Amount</div>
+          <div style="color: #10b981; font-size: 13px; font-weight: 700;">₹{{ "%.2f"|format(parcel.billing_amount or 0.0) }}</div>
+        </div>
+
+      {% if parcel.photos %}
+      <div style="grid-column: span 2; border-top: 1px dashed var(--glass-border); padding-top: 12px; margin-top: 4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="color: var(--text-muted); font-size: 11px; text-transform: uppercase; font-weight: 600;">📷 Package Photos (Click to Zoom)</div>
+          <span style="font-size: 11px; color: #4f8ef7;">🔍 Click to Zoom In/Out</span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          {% for photo in parcel.photos %}
+          <div style="width:90px; height:90px; border-radius:8px; overflow:hidden; border:2px solid var(--glass-border); cursor:zoom-in; transition:transform 0.2s, box-shadow 0.2s;"
+               onmouseover="this.style.transform='scale(1.06)';this.style.boxShadow='0 4px 16px rgba(79,142,247,0.35)';"
+               onmouseout="this.style.transform='scale(1)';this.style.boxShadow='none';"
+               onclick="openImageZoomModal('{{ photo }}', 'Parcel {{ parcel.tracking_number }} Photo')">
+            <img src="{{ photo }}" alt="Package photo" style="width:100%; height:100%; object-fit:cover; display:block;">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      </div>
+    </div>
+
+    {# ===== PUSHPAK COURIER INTEGRATION CARD (ADD-ON) ===== #}
+    {% if parcel.transfer_mode == 'by_courier' and parcel.courier_partner == 'Pushpak' %}
+    <div style="margin-top: 16px; padding: 16px; background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.25); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; position: relative; z-index: 1;">
+      <div style="text-align: left;">
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">Pushpak Courier Integration</div>
+        <div style="font-size: 14px; font-weight: 700; color: #f97316; margin-top: 2px;">
+          {% if parcel.pushpak_booking_status == 'booked' %}
+          ✅ Booked with Pushpak (Doc No: {{ parcel.pushpak_doc_no or parcel.courier_id }})
+          {% else %}
+          🚚 Pushpak Selected — Ready to Book
+          {% endif %}
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        {% if parcel.pushpak_booking_status != 'booked' %}
+        <button onclick="bookWithPushpakOnSuccess({{ parcel.id }})" id="pushpakSuccessBookBtn" style="background: linear-gradient(135deg, #f97316, #ea580c); border: none; color: white; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+          🚀 Book with Pushpak
+        </button>
+        {% endif %}
+        {% if parcel.courier_id or parcel.pushpak_doc_no %}
+        <a href="{{ url_for('tracking.track_home', q=parcel.tracking_number) }}" target="_blank" style="background: rgba(34,211,238,0.15); border: 1px solid rgba(34,211,238,0.3); color: #22d3ee; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+          📡 Track Live
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {# ===== END PUSHPAK INTEGRATION CARD ===== #}
+
+  </div>
+  
+  <div class="action-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+    <button onclick="window.open('{{ url_for('dispatch.print_label', tracking_no=tracking_number) }}', '_blank')" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      🖨️ Print QR Label
+    </button>
+    
+    <a href="{{ url_for('tracking.track_home', q=tracking_number) }}" target="_blank" class="btn btn-ghost" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; font-weight: 500; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      🔍 Track This File
+    </a>
+    
+    <a href="{{ url_for('dispatch.new_dispatch') }}" class="btn btn-ghost" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; font-weight: 500; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      📦 Dispatch Another
+    </a>
+    
+    <a href="{{ url_for('dispatch.dispatch_list') }}" class="btn btn-ghost" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; font-weight: 500; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      📋 View All Parcels
+    </a>
+  </div>
+  
+</div>
+
+<style>
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  80% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (max-width: 600px) {
+  .action-buttons { grid-template-columns: 1fr !important; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    if(confirm("Do you want to print the QR label now?")) {
+      window.open('{{ url_for("dispatch.print_label", tracking_no=tracking_number) }}', '_blank');
+    }
+  }, 1000);
+});
+
+function bookWithPushpakOnSuccess(parcelId) {
+  if (!confirm('Book this parcel with Pushpak Courier API?')) return;
+  const btn = document.getElementById('pushpakSuccessBookBtn');
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Booking...'; }
+
+  fetch(`/api/pushpak/book/${parcelId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ ' + data.message + (data.doc_no ? '\nDoc No: ' + data.doc_no : ''));
+      window.location.reload();
+    } else {
+      alert('❌ ' + data.message);
+      if (btn) { btn.disabled = false; btn.innerHTML = '🚀 Book with Pushpak'; }
+    }
+  })
+  .catch(err => {
+    alert('Error: ' + err.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '🚀 Book with Pushpak'; }
+  });
+}
+</script>
+{% endblock %}

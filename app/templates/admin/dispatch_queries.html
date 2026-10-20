@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}Dispatch Queries Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">📬 Dispatch Queries Dashboard</h1>
+    <p class="page-subtitle">Manage all department dispatch requests — pick up, dispatch, and track delivery confirmations.</p>
+  </div>
+</div>
+
+<!-- Stat Cards -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;margin-bottom:1.75rem;">
+  <div class="stat-card" style="border-left:4px solid #f59e0b;">
+    <div class="stat-icon" style="background:rgba(245,158,11,.12);color:#f59e0b;">⏳</div>
+    <div>
+      <div class="stat-value">{{ pending_pickup_count }}</div>
+      <div class="stat-label">Pending Pickup</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:4px solid #3b82f6;">
+    <div class="stat-icon" style="background:rgba(59,130,246,.12);color:#3b82f6;">🚚</div>
+    <div>
+      <div class="stat-value">{{ in_transit_count }}</div>
+      <div class="stat-label">In Transit</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:4px solid #10b981;">
+    <div class="stat-icon" style="background:rgba(16,185,129,.12);color:#10b981;">✅</div>
+    <div>
+      <div class="stat-value">{{ pending_confirm_count }}</div>
+      <div class="stat-label">Awaiting Sender Confirmation</div>
+    </div>
+  </div>
+  <div class="stat-card" style="border-left:4px solid #6366f1;">
+    <div class="stat-icon" style="background:rgba(99,102,241,.12);color:#6366f1;">🔒</div>
+    <div>
+      <div class="stat-value">{{ closed_count }}</div>
+      <div class="stat-label">Closed & Confirmed</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1.25rem; background:var(--bg-card, #ffffff); border:1px solid var(--glass-border, #e2e8f0); border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+  <div class="card-body" style="padding:0.9rem 1.2rem;">
+    <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+      <span style="font-size:12.5px; font-weight:700; color:var(--text-primary, #1e293b); display:inline-flex; align-items:center; gap:4px; margin-right:4px;">
+        Filter by Status:
+      </span>
+
+      <!-- ALL Button (Dark/High Contrast) -->
+      <a href="{{ url_for('admin.dispatch_queries', status='', department_id=selected_dept) }}"
+         style="padding:5px 14px; border-radius:999px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s ease;
+                {% if not status %}
+                background:#0f172a; color:#ffffff; border:1.5px solid #0f172a; box-shadow:0 2px 5px rgba(15,23,42,0.25);
+                {% else %}
+                background:#f1f5f9; color:#0f172a; border:1.5px solid #cbd5e1;
+                {% endif %}">
+        📋 All
+      </a>
+
+      <!-- Pending Pickup -->
+      <a href="{{ url_for('admin.dispatch_queries', status='query_raised', department_id=selected_dept) }}"
+         style="padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s ease;
+                {% if status == 'query_raised' %}
+                background:#d97706; color:#ffffff; border:1.5px solid #b45309; box-shadow:0 2px 5px rgba(217,119,6,0.3); font-weight:700;
+                {% else %}
+                background:#fffbeb; color:#92400e; border:1.5px solid #fde68a;
+                {% endif %}">
+        ⏳ Pending Pickup
+      </a>
+
+      <!-- Picked Up -->
+      <a href="{{ url_for('admin.dispatch_queries', status='picked_up', department_id=selected_dept) }}"
+         style="padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s ease;
+                {% if status == 'picked_up' %}
+                background:#2563eb; color:#ffffff; border:1.5px solid #1d4ed8; box-shadow:0 2px 5px rgba(37,99,235,0.3); font-weight:700;
+                {% else %}
+                background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;
+                {% endif %}">
+        🚚 Picked Up
+      </a>
+
+      <!-- Pending Confirmation -->
+      <a href="{{ url_for('admin.dispatch_queries', status='delivered_pending', department_id=selected_dept) }}"
+         style="padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s ease;
+                {% if status == 'delivered_pending' %}
+                background:#059669; color:#ffffff; border:1.5px solid #047857; box-shadow:0 2px 5px rgba(5,150,105,0.3); font-weight:700;
+                {% else %}
+                background:#ecfdf5; color:#065f46; border:1.5px solid #a7f3d0;
+                {% endif %}">
+        ✅ Pending Confirmation
+      </a>
+
+      <!-- Closed -->
+      <a href="{{ url_for('admin.dispatch_queries', status='closed', department_id=selected_dept) }}"
+         style="padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s ease;
+                {% if status == 'closed' %}
+                background:#4f46e5; color:#ffffff; border:1.5px solid #4338ca; box-shadow:0 2px 5px rgba(79,70,229,0.3); font-weight:700;
+                {% else %}
+                background:#eef2ff; color:#3730a3; border:1.5px solid #c7d2fe;
+                {% endif %}">
+        🔒 Closed
+      </a>
+
+      <!-- Department Slicer -->
+      {% if departments %}
+      <div style="margin-left:auto; display:inline-flex; align-items:center; gap:6px;">
+        <label for="deptFilter" style="font-size:12px; font-weight:700; color:var(--text-primary, #0f172a); white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
+          🏢 Dept:
+        </label>
+        <div style="position:relative; display:inline-block;">
+          <select id="deptFilter"
+                  style="min-width:180px; height:34px; padding:4px 28px 4px 10px; font-size:12px; font-weight:700; color:#0f172a; background-color:#ffffff; border:1.5px solid #64748b; border-radius:7px; cursor:pointer; outline:none; appearance:none; -webkit-appearance:none; box-shadow:0 1px 2px rgba(0,0,0,0.05);"
+                  onchange="location.href='{{ url_for('admin.dispatch_queries') }}?status={{ status }}&department_id='+this.value">
+            <option value="" style="color:#0f172a; font-weight:700; background:#ffffff;">All Departments</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}" {% if selected_dept==d.id|string %}selected{% endif %} style="color:#0f172a; font-weight:600; background:#ffffff;">
+              {{ d.name }}
+            </option>
+            {% endfor %}
+          </select>
+          <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:#1e293b; font-size:10px; font-weight:bold;">▼</span>
+        </div>
+        {% if selected_dept %}
+        <a href="{{ url_for('admin.dispatch_queries', status=status) }}" 
+           style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; padding:5px 10px; font-size:11.5px; font-weight:600; text-decoration:none;"
+           title="Reset Department Filter">✕ Clear</a>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<!-- Queries Table -->
+{% if parcels.items %}
+<div class="card" style="border-radius:12px; overflow:hidden;">
+  <div class="table-responsive" style="overflow-x:auto; width:100%;">
+    <table class="data-table" style="width:100%; margin:0; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th>Tracking ID</th>
+          <th>Raised By</th>
+          <th>Receiver</th>
+          <th>Route</th>
+          <th>Priority</th>
+          <th>Raised On</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in parcels.items %}
+        <tr>
+          <td>
+            <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}"
+               style="font-family:monospace;font-weight:700;color:var(--accent);text-decoration:none;">
+              {{ p.tracking_number }}
+            </a>
+          </td>
+          <td>
+            <div style="font-weight:600;">{{ p.sender_name }}</div>
+            {% if p.sender_department_name %}
+            <div style="font-size:11px;">
+              <span style="background:rgba(99,102,241,.12);color:var(--accent);padding:1px 6px;border-radius:4px;">{{ p.sender_department_name }}</span>
+            </div>
+            {% endif %}
+            {% if p.assigned_admin %}
+            <div style="font-size:11px;margin-top:4px;color:#f59e0b;font-weight:600;">
+              👤 Admin: {{ p.assigned_admin.name }}
+            </div>
+            {% endif %}
+          </td>
+          <td>
+            <div style="font-weight:600;">{{ p.receiver_name }}</div>
+            {% if p.receiver_phone %}<div style="font-size:12px;color:var(--text-secondary);">{{ p.receiver_phone }}</div>{% endif %}
+          </td>
+          <td>
+            <div style="font-size:12px;line-height:1.7;">
+              {% if p.sender_department_name %}<span style="background:rgba(99,102,241,.1);color:var(--accent);padding:1px 6px;border-radius:4px;font-size:11px;">{{ p.sender_department_name }}</span> →{% endif %}
+              {% if p.receiver_department_name %}<span style="background:rgba(16,185,129,.1);color:#10b981;padding:1px 6px;border-radius:4px;font-size:11px;">{{ p.receiver_department_name }}</span>{% endif %}
+            </div>
+            {% if p.receiver_branch %}
+            <div style="font-size:11px;color:var(--text-secondary);">{{ p.receiver_branch.name }}</div>
+            {% else %}
+            <div style="font-size:11px;color:var(--text-secondary);">{{ p.receiver_branch_name or 'Other Location' }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.priority == 'urgent' %}
+            <span style="background:#fef2f2;color:#991b1b;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">🔴 Urgent</span>
+            {% elif p.priority == 'express' %}
+            <span style="background:#fff7ed;color:#9a3412;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">🟠 Express</span>
+            {% else %}
+            <span style="background:var(--card-bg);color:var(--text-secondary);padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;">Normal</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="font-size:13px;" {% if p.dispatched_at %}data-utc="{{ p.dispatched_at.isoformat() }}Z" data-format="date-dmy"{% endif %}>{{ p.dispatched_at.strftime('%d-%m-%Y') if p.dispatched_at else '—' }}</div>
+            <div style="font-size:11px;color:var(--text-secondary);" {% if p.dispatched_at %}data-utc="{{ p.dispatched_at.isoformat() }}Z" data-format="time-only"{% endif %}>{{ p.dispatched_at.strftime('%I:%M %p') if p.dispatched_at else '' }}</div>
+          </td>
+          <td>
+            {% if p.status == 'query_raised' %}
+            <span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">⏳ Pending Pickup</span>
+            {% elif p.status == 'picked_up' %}
+            <span style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">🚚 Picked Up</span>
+            {% elif p.status == 'in_transit' %}
+            <span style="background:#e0f2fe;color:#075985;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">📦 In Transit</span>
+            {% elif p.status == 'delivered_pending' %}
+            <span style="background:#d1fae5;color:#065f46;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">✅ Pending Confirmation</span>
+            {% elif p.status == 'closed' %}
+            <span style="background:#f0fdf4;color:#166534;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;">🔒 Closed</span>
+            {% else %}
+            <span style="background:var(--card-bg);color:var(--text-secondary);padding:4px 10px;border-radius:999px;font-size:11px;">{{ p.status_label }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+              <a href="{{ url_for('dispatch.dispatch_detail', tracking_number=p.tracking_number) }}"
+                 class="btn btn-outline" style="padding:4px 10px;font-size:11px;">👁 View</a>
+
+              {% if p.status == 'query_raised' %}
+              <a href="{{ url_for('admin.pickup_dispatch_query', parcel_id=p.id) }}"
+                 class="btn btn-primary" style="padding:4px 10px;font-size:11px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;">
+                🚚 Pick Up & Dispatch
+              </a>
+              {% endif %}
+
+              {% if p.status in ['picked_up', 'in_transit'] %}
+              <form method="POST" action="{{ url_for('admin.mark_query_delivered', parcel_id=p.id) }}"
+                    onsubmit="return confirm('Mark this parcel as received by the receiver?\n(Sender will need to confirm to close the query.)');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary" style="padding:4px 10px;font-size:11px;background:linear-gradient(135deg,#10b981,#059669);border:none;">
+                  📦 Mark Delivered
+                </button>
+              </form>
+              {% endif %}
+
+              {% if p.status == 'delivered_pending' %}
+              <form method="POST" action="{{ url_for('admin.close_query', parcel_id=p.id) }}"
+                    onsubmit="return confirm('Confirm delivery of {{ p.tracking_number }} and close this query?\n\nThis will mark the query as CLOSED.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary"
+                  style="padding:4px 10px;font-size:11px;background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;white-space:nowrap;">
+                  ✅ Confirm & Close
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if parcels.pages > 1 %}
+<div style="display:flex;justify-content:center;gap:.5rem;margin-top:1.5rem;">
+  {% for page_num in parcels.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+    {% if page_num %}
+      <a href="{{ url_for('admin.dispatch_queries', page=page_num, status=status, department_id=selected_dept) }}"
+         style="padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;
+                background:{% if page_num==parcels.page %}var(--accent){% else %}var(--card-bg){% endif %};
+                color:{% if page_num==parcels.page %}white{% else %}var(--text-secondary){% endif %};
+                border:1px solid var(--border);">
+        {{ page_num }}
+      </a>
+    {% else %}
+      <span style="padding:6px 6px;color:var(--text-secondary);">…</span>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="card" style="text-align:center;padding:3rem;">
+  <div style="font-size:48px;margin-bottom:1rem;">📭</div>
+  <h3 style="color:var(--text-secondary);">No queries found</h3>
+  <p style="color:var(--text-secondary);">No department dispatch queries match the selected filters.</p>
+</div>
+{% endif %}
+{% endblock %}
