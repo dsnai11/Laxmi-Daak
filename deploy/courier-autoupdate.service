@@ -1,0 +1,8 @@
+[Unit]
+Description=Courier app auto-update from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/ubuntu/courier_app/courier_tracker/deploy/auto_update.sh

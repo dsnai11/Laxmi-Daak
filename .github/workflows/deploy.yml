@@ -1,10 +1,9 @@
 name: 🚀 Deploy to AWS EC2
 
+# Auto deploy ab server khud karta hai (deploy/README.md dekhein).
+# Ye workflow sirf Actions tab se manually chalta hai.
 on:
-  push:
-    branches:
-      - main   # Jab bhi main branch pe push hoga, auto deploy hoga
-  workflow_dispatch:   # Actions tab se manually bhi chala sakte hain
+  workflow_dispatch:
 
 concurrency:
   group: deploy-ec2
