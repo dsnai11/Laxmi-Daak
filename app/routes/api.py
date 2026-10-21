@@ -13,6 +13,8 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 @api_bp.route('/dashboard/stats')
 @login_required
 def dashboard_stats():
+    if current_user.role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
     stats = {
         'total_parcels': Parcel.query.filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count(),
         'total_branches': Branch.query.filter_by(is_active=True).count(),
@@ -27,6 +29,8 @@ def dashboard_stats():
 @api_bp.route('/dashboard/chart-data')
 @login_required
 def chart_data():
+    if current_user.role != 'superadmin':
+        return jsonify({'error': 'Forbidden'}), 403
     labels = []
     data = []
     today = datetime.utcnow().date()
@@ -72,6 +76,8 @@ def search_parcels():
 @api_bp.route('/stats/branch/<int:branch_id>')
 @login_required
 def branch_stats(branch_id):
+    if current_user.role != 'superadmin' and current_user.branch_id != branch_id:
+        return jsonify({'error': 'Forbidden'}), 403
     branch = db.session.get(Branch, branch_id)
     if not branch:
         return jsonify({'error': 'Branch not found'}), 404

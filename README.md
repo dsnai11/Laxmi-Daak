@@ -54,7 +54,7 @@ python run.py
 Copy `.env.example` to `.env` and fill in:
 
 ```
-SECRET_KEY=your_secret_key
+FLASK_SECRET_KEY=your_secret_key   # required: without it a temporary random key is used
 MAIL_USERNAME=your_email@gmail.com
 MAIL_PASSWORD=your_app_password
 BASE_URL=http://localhost:5000

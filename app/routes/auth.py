@@ -165,8 +165,8 @@ def profile():
             if new_password != confirm_password:
                 flash('New passwords do not match.', 'error')
                 return redirect(url_for('auth.profile'))
-            if len(new_password) < 4:
-                flash('Password must be at least 4 characters long.', 'error')
+            if len(new_password) < 8:
+                flash('Password must be at least 8 characters long.', 'error')
                 return redirect(url_for('auth.profile'))
             current_user.set_password(new_password)
             
@@ -254,8 +254,8 @@ def reset_password(token):
             flash('Passwords do not match.', 'error')
             return render_template('auth/reset_password.html', token=token)
             
-        if len(new_password) < 4:
-            flash('Password must be at least 4 characters long.', 'error')
+        if len(new_password) < 8:
+            flash('Password must be at least 8 characters long.', 'error')
             return render_template('auth/reset_password.html', token=token)
             
         try:

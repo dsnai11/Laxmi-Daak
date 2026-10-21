@@ -12,27 +12,6 @@ if not _SECRET_KEY:
     print('[WARNING] FLASK_SECRET_KEY is not set; using a temporary random key.')
 
 class Config:
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
-    SECRET_KEY = _SECRET_KEY
-    
-    # SQLite Database - auto-creates file in instance folder
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///courier_tracker.db')
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # Mail settings
-    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.office365.com')
-    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
-    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'False').lower() == 'true'
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', '')
-    
-    COMPANY_NAME = os.environ.get('COMPANY_NAME', 'CourierTrack Pro')
-    BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
-    SESSION_COOKIE_SAMESITE = 'Lax'
     SECRET_KEY = _SECRET_KEY
     
     # SQLite Database - auto-creates file in instance folder

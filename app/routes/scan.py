@@ -173,7 +173,14 @@ def process_scan():
         log_security_action('scan_recorded', f"Scanned parcel {tracking_number} with action: {action}.", user_id=current_user.id, username=current_user.username)
         
         # Emit Socket.IO event for real-time dashboard update
-        socketio.emit('scan_update', {
+        # Only notify people who may see this parcel, not every connected client
+        rooms = {'role_superadmin'}
+        for bid in (parcel.sender_branch_id, parcel.receiver_branch_id, parcel.current_branch_id):
+            if bid:
+                rooms.add(f'branch_{bid}')
+        if parcel.created_by:
+            rooms.add(f'user_{parcel.created_by}')
+        scan_payload = {
             'tracking_number': tracking_number,
             'action': action,
             'action_label': scan_log.action_label,
@@ -181,7 +188,9 @@ def process_scan():
             'employee': current_user.name,
             'timestamp': scan_log.timestamp.strftime('%H:%M:%S'),
             'status': new_status
-        })
+        }
+        for room in rooms:
+            socketio.emit('scan_update', scan_payload, to=room)
         
         # Send email notification
         try:

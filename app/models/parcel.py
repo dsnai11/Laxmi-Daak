@@ -115,7 +115,7 @@ class Parcel(db.Model):
         """True when due_date has passed and parcel is not yet delivered."""
         if not self.due_date:
             return False
-        if self.status in ('delivered', 'returned'):
+        if self.status in ('delivered', 'delivered_pending', 'closed', 'returned'):
             return False
         from datetime import date
         return date.today() > self.due_date

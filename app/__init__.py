@@ -19,7 +19,8 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
-    socketio.init_app(app, async_mode='threading', cors_allowed_origins='*')
+    # No cors_allowed_origins='*': default only accepts same-origin websocket connections
+    socketio.init_app(app, async_mode='threading')
     csrf.init_app(app)
     
     @app.errorhandler(CSRFError)
@@ -206,14 +207,13 @@ def create_app(config_class=Config):
         if request.endpoint == 'static' or request.path.startswith('/static/'):
             return
         if current_user.is_authenticated:
-            user_ip = request.remote_addr or 'unknown'
+            # Bind to User-Agent only: binding to IP logged out mobile users on every
+            # network change (and behind a proxy remote_addr is the proxy, not the user).
             user_agent = request.headers.get('User-Agent', 'unknown')
-            stored_ip = session.get('session_ip')
             stored_ua = session.get('session_ua')
-            if stored_ip is None or stored_ua is None:
-                session['session_ip'] = user_ip
+            if stored_ua is None:
                 session['session_ua'] = user_agent
-            elif stored_ip != user_ip or stored_ua != user_agent:
+            elif stored_ua != user_agent:
                 logout_user()
                 session.clear()
                 flash('Session invalidated due to suspicious activity.', 'error')
@@ -226,17 +226,6 @@ def create_app(config_class=Config):
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         return response
-        
-        # Serve PWA manifest and service worker from root
-        @app.route('/manifest.json')
-        def serve_manifest():
-            return app.send_static_file('manifest.json')
-
-        @app.route('/service-worker.js')
-        def serve_sw():
-            response = app.send_static_file('service-worker.js')
-            response.headers['Content-Type'] = 'application/javascript'
-            return response
 
     return app
 
