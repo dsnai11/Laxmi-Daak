@@ -39,7 +39,7 @@ echo [3/4] Starting CourierTrack Pro...
 echo.
 echo  ==========================================
 echo   Open browser: http://localhost:5000
-echo   Admin Login:  admin / Admin@123
+echo   First run: admin password is printed in this console
 echo   Press Ctrl+C to stop the server
 echo  ==========================================
 echo.
