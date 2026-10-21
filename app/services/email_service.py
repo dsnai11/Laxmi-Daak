@@ -14,6 +14,19 @@ import logging
 logger = logging.getLogger('email_service')
 logger.setLevel(logging.INFO)
 
+def _smtp_ssl_context(config):
+    """TLS context that verifies the server certificate.
+
+    Set MAIL_TLS_VERIFY=False in .env only if the mail server has a
+    self-signed or mismatched certificate.
+    """
+    context = ssl.create_default_context()
+    if not config.get('MAIL_TLS_VERIFY', True):
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+    return context
+
+
 def send_email_sync(to_email, subject, html_body, sender_email=None, app_config=None):
     """Synchronous SMTP email delivery with full RFC compliance and error handling."""
     if not to_email or not to_email.strip():
@@ -49,9 +62,7 @@ def send_email_sync(to_email, subject, html_body, sender_email=None, app_config=
         part = MIMEText(html_body, 'html', 'utf-8')
         msg.attach(part)
 
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+        context = _smtp_ssl_context(config)
 
         if config.get('MAIL_USE_SSL', False) or mail_port == 465:
             server = smtplib.SMTP_SSL(mail_server, mail_port, context=context, timeout=20)
@@ -328,9 +339,7 @@ def send_bulk_dispatch_emails_background(email_items, app_config):
             return
 
         print(f"[BULK EMAIL] Starting background delivery of {len(email_items)} emails...")
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+        context = _smtp_ssl_context(app_config)
 
         def _connect():
             try:

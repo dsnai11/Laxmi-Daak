@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from app import db
-from app.models.parcel import Parcel
+from app.models.parcel import Parcel, get_user_parcel_filter, user_can_manage_parcel
 from app.models.branch import Branch
 from app.models.scan_log import ScanLog
 from app.models.user import User
@@ -51,11 +51,17 @@ def search_parcels():
     q = request.args.get('q', '').strip()
     if not q or len(q) < 2:
         return jsonify([])
-    parcels = Parcel.query.filter(
+    query = Parcel.query.filter(
         (Parcel.tracking_number.ilike(f'%{q}%')) |
         (Parcel.sender_name.ilike(f'%{q}%')) |
         (Parcel.receiver_name.ilike(f'%{q}%'))
-    ).limit(10).all()
+    )
+    scope = get_user_parcel_filter(current_user)
+    if scope is False:
+        return jsonify([])
+    if scope is not None:
+        query = query.filter(scope)
+    parcels = query.limit(10).all()
     return jsonify([{
         'tracking_number': p.tracking_number,
         'sender_name': p.sender_name,
@@ -86,12 +92,23 @@ def api_scan():
 @api_bp.route('/users/lookup')
 @login_required
 def lookup_user():
+    # Only people who create dispatches/queries need to look up receivers
+    if current_user.role not in ('superadmin', 'manager') and not (
+        current_user.has_permission('can_new_dispatch') or
+        current_user.has_permission('can_bulk_dispatch') or
+        current_user.has_permission('can_raise_query')
+    ):
+        return jsonify({'success': False, 'message': 'Not authorized'}), 403
+
     email = request.args.get('email', '').strip().lower()
     if not email:
         return jsonify({'success': False, 'message': 'No email provided'}), 400
-    
-    # Find user by email or username
-    user = User.query.filter((User.email.ilike(email)) | (User.username.ilike(email))).first()
+
+    # Exact (case-insensitive) match only; ilike would treat % and _ as wildcards
+    user = User.query.filter(
+        User.is_active == True,
+        (func.lower(User.email) == email) | (func.lower(User.username) == email)
+    ).first()
     if not user:
         return jsonify({'success': False, 'message': 'User not found'}), 404
     
@@ -150,8 +167,17 @@ def get_billing_rates():
 
 @api_bp.route('/pushpak/track/<docket_no>')
 def pushpak_track_api(docket_no):
-    """Fetch live tracking data from Pushpak Courier API."""
+    """Fetch live tracking data from Pushpak Courier API.
+
+    Stays public because the customer tracking page uses it, but only for
+    dockets that belong to a parcel in our system (not an open proxy).
+    """
     from app.services.pushpak_service import pushpak_track_delivery
+    known = Parcel.query.filter(
+        (Parcel.courier_id == docket_no) | (Parcel.pushpak_doc_no == docket_no)
+    ).first()
+    if not known:
+        return jsonify({'success': False, 'message': 'Docket not found.'}), 404
     result = pushpak_track_delivery(docket_no)
     return jsonify(result)
 
@@ -176,7 +202,9 @@ def pushpak_book_api(parcel_id):
     parcel = db.session.get(Parcel, parcel_id)
     if not parcel:
         return jsonify({'success': False, 'message': 'Parcel not found.'}), 404
-    
+    if not user_can_manage_parcel(current_user, parcel):
+        return jsonify({'success': False, 'message': 'Not authorized for this parcel.'}), 403
+
     # Check if already booked
     if parcel.pushpak_booking_status == 'booked':
         return jsonify({'success': False, 'message': f'Already booked with Pushpak. Doc No: {parcel.pushpak_doc_no}'})
@@ -206,7 +234,9 @@ def pushpak_pickup_api(parcel_id):
     parcel = db.session.get(Parcel, parcel_id)
     if not parcel:
         return jsonify({'success': False, 'message': 'Parcel not found.'}), 404
-    
+    if not user_can_manage_parcel(current_user, parcel):
+        return jsonify({'success': False, 'message': 'Not authorized for this parcel.'}), 403
+
     result = pushpak_pickup_request(parcel)
     
     if result['success']:

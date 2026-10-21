@@ -142,6 +142,29 @@ def generate_tracking_number():
     return f'CRR-{now.year}-{rand_part}'
 
 
+def user_can_manage_parcel(user, parcel):
+    """Superadmin, the creator, or a user of the sender branch may modify a parcel."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.role == 'superadmin':
+        return True
+    if parcel.created_by == user.id:
+        return True
+    return bool(user.branch_id and user.branch_id == parcel.sender_branch_id)
+
+
+def user_can_view_parcel(user, parcel):
+    """True when the parcel falls inside the user's visibility scope."""
+    if not user or not user.is_authenticated:
+        return False
+    cond = get_user_parcel_filter(user)
+    if cond is None:
+        return True
+    if cond is False:
+        return False
+    return Parcel.query.filter(Parcel.id == parcel.id, cond).first() is not None
+
+
 def get_user_parcel_filter(user):
     """
     Returns an SQLAlchemy filter condition for parcels visible to the given user.

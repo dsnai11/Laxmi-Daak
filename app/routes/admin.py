@@ -310,7 +310,12 @@ def add_account():
         department_name=department_name,
         is_active=True
     )
-    user.set_password(password or 'Password@123')
+    generated_password = None
+    if not password:
+        import secrets
+        generated_password = secrets.token_urlsafe(9)
+        password = generated_password
+    user.set_password(password)
     
     # Parse and set permissions
     valid_keys = [
@@ -328,7 +333,8 @@ def add_account():
     
     return jsonify({
         'success': True,
-        'message': f'Account "{name}" created successfully! Login ID: {username}',
+        'message': f'Account "{name}" created successfully! Login ID: {username}'
+                   + (f' | Temporary password: {generated_password}' if generated_password else ''),
         'username': username
     })
 

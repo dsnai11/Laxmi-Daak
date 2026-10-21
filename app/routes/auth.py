@@ -22,10 +22,11 @@ def create_default_superadmin():
             email='', # Email is left blank to avoid unwanted notifications
             is_active=True
         )
-        admin.set_password('Admin@123')
+        initial_password = secrets.token_urlsafe(12)
+        admin.set_password(initial_password)
         db.session.add(admin)
         db.session.commit()
-        print('[OK] Default superadmin created: admin / Admin@123')
+        print(f'[OK] Default superadmin created: admin / {initial_password}  (change it after first login)')
     else:
         pass # Do not enforce the email on the superadmin account
 

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
 from app import db, socketio
-from app.models.parcel import Parcel
+from app.models.parcel import Parcel, user_can_view_parcel
 from app.models.scan_log import ScanLog
 from app.models.branch import Branch
 from app.services.email_service import send_arrival_notification, send_delivery_notification, send_failed_notification
@@ -20,7 +20,9 @@ def check_scan_access():
         abort(403)
 
 
-ALLOWED_PHOTO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'}
+SCAN_ACTIONS = {'received', 'out_for_delivery', 'delivered', 'failed', 'returned'}
+
+ALLOWED_PHOTO_EXTENSIONS ={'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'}
 
 def _allowed_photo(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_PHOTO_EXTENSIONS
@@ -45,19 +47,23 @@ def lookup(tracking_number):
         rb = db.session.get(Branch, parcel.receiver_branch_id)
         receiver_branch_name = rb.name if rb else ''
     
+    # Any scanner may identify a parcel in transit, but contact details and
+    # contents are only shown to people inside the parcel's scope.
+    in_scope = user_can_view_parcel(current_user, parcel)
+
     return jsonify({
         'success': True,
         'parcel': {
             'id': parcel.id,
             'tracking_number': parcel.tracking_number,
             'sender_name': parcel.sender_name,
-            'sender_phone': parcel.sender_phone or '',
-            'sender_email': parcel.sender_email or '',
+            'sender_phone': (parcel.sender_phone or '') if in_scope else '',
+            'sender_email': (parcel.sender_email or '') if in_scope else '',
             'receiver_name': parcel.receiver_name,
-            'receiver_phone': parcel.receiver_phone or '',
-            'receiver_email': parcel.receiver_email or '',
+            'receiver_phone': (parcel.receiver_phone or '') if in_scope else '',
+            'receiver_email': (parcel.receiver_email or '') if in_scope else '',
             'receiver_branch': receiver_branch_name,
-            'description': parcel.description or '',
+            'description': (parcel.description or '') if in_scope else '',
             'priority': parcel.priority,
             'priority_label': parcel.priority_label,
             'status': parcel.status,
@@ -80,21 +86,37 @@ def lookup(tracking_number):
 @scan_bp.route('/process', methods=['POST'])
 @login_required
 def process_scan():
-    data = request.get_json()
+    # /api/scan reaches this function without the blueprint-level check
+    if current_user.role not in ('superadmin', 'manager') and not current_user.has_permission('can_scan'):
+        return jsonify({'success': False, 'message': 'Not authorized to scan'}), 403
+
+    data = request.get_json(silent=True)
     if not data:
         return jsonify({'success': False, 'message': 'No data provided'}), 400
-    
+
     tracking_number = (data.get('tracking_number', '') or '').strip().upper()
     action = data.get('action', 'received')
     notes = data.get('notes', '')
-    
+
     if not tracking_number:
         return jsonify({'success': False, 'message': 'Tracking number required'}), 400
-    
+    if action not in SCAN_ACTIONS:
+        return jsonify({'success': False, 'message': 'Invalid scan action'}), 400
+
     parcel = Parcel.query.filter_by(tracking_number=tracking_number).first()
     if not parcel:
         return jsonify({'success': False, 'message': f'Parcel {tracking_number} not found'}), 404
-    
+
+    # Query-workflow parcels are handled by the admin pickup/confirm flow, not by scans
+    if parcel.status in ('query_raised', 'closed') and current_user.role != 'superadmin':
+        return jsonify({'success': False, 'message': 'This parcel cannot be updated by scanning in its current state.'}), 400
+
+    # Any branch may log a hand-over (received / out for delivery), but closing
+    # a parcel out as delivered, failed or returned needs the parcel to be in
+    # the user's scope (sender, receiver or current branch, or personally theirs).
+    if action in ('delivered', 'failed', 'returned') and not user_can_view_parcel(current_user, parcel):
+        return jsonify({'success': False, 'message': 'You are not authorized to update this parcel.'}), 403
+
     try:
         # Update parcel status and current branch
         old_status = parcel.status
@@ -205,6 +227,8 @@ def upload_scan_photo():
     parcel = Parcel.query.filter_by(tracking_number=tracking_number).first()
     if not parcel:
         return jsonify({'success': False, 'message': f'Parcel {tracking_number} not found'}), 404
+    if not user_can_view_parcel(current_user, parcel):
+        return jsonify({'success': False, 'message': 'You are not authorized to add photos to this parcel.'}), 403
 
     try:
         upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], tracking_number)

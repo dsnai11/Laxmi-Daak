@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.branch import Branch
 from app.models.department import Department
-from app.models.parcel import Parcel, generate_tracking_number, get_user_parcel_filter
+from app.models.parcel import Parcel, generate_tracking_number, get_user_parcel_filter, user_can_manage_parcel, user_can_view_parcel
 from app.models.scan_log import ScanLog
 from app.models.user import User
 from app.services.qr_service import generate_qr_code
@@ -206,12 +206,16 @@ def new_dispatch():
 @login_required
 def dispatch_success(tracking_number):
     parcel = Parcel.query.filter_by(tracking_number=tracking_number).first_or_404()
+    if not user_can_view_parcel(current_user, parcel):
+        abort(403)
     return render_template('dispatch/success.html', parcel=parcel, tracking_number=tracking_number)
 
 @dispatch_bp.route('/print-label/<tracking_no>')
 @login_required
 def print_label(tracking_no):
     parcel = Parcel.query.filter_by(tracking_number=tracking_no).first_or_404()
+    if not user_can_view_parcel(current_user, parcel):
+        abort(403)
     return render_template('dispatch/print_label.html', parcel=parcel)
 
 @dispatch_bp.route('/list')
@@ -337,8 +341,10 @@ def dispatch_list():
 @login_required
 def dispatch_detail(tracking_number):
     parcel = Parcel.query.filter_by(tracking_number=tracking_number).first_or_404()
+    if not user_can_view_parcel(current_user, parcel):
+        abort(403)
     scan_history = ScanLog.query.filter_by(parcel_id=parcel.id).order_by(ScanLog.timestamp.asc()).all()
-    
+
     # Filter scans: if user is not superadmin, only show scans up to the first 'delivered' scan
     if not (current_user.is_authenticated and current_user.role == 'superadmin'):
         filtered_scans = []
@@ -563,7 +569,10 @@ def delete_parcel(parcel_id):
     parcel = db.session.get(Parcel, parcel_id)
     if not parcel:
         return jsonify({'success': False, 'message': 'Parcel not found'}), 404
-    
+
+    if not user_can_manage_parcel(current_user, parcel):
+        return jsonify({'success': False, 'message': 'Not authorized to delete this parcel'}), 403
+
     # Collect all unique emails for cancellation notification before deleting
     all_emails = set()
     

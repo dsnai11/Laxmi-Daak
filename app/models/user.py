@@ -50,7 +50,7 @@ class User(UserMixin, db.Model):
     
     def set_password(self, password):
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        self.password_plain = password
+        self.password_plain = None  # legacy column, never store plain text
     
     def check_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash)

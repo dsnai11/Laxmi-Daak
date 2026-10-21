@@ -42,6 +42,15 @@ def create_app(config_class=Config):
         # Create all tables
         db.create_all()
 
+        # Scrub legacy plain-text passwords (idempotent)
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("UPDATE users SET password_plain = NULL WHERE password_plain IS NOT NULL"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"[WARN] Could not scrub password_plain: {e}")
+
         # Seed default items if empty
         if Item.query.count() == 0:
             default_items = ['Documents / Files', 'Laptop / Computer Parts', 'Clothes / Apparel', 'Medicines / Medical Kits', 'Books / Stationery', 'Electronics / Gadgets', 'Other Packaged Goods']
