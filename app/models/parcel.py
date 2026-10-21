@@ -162,6 +162,10 @@ def user_can_view_parcel(user, parcel):
         return True
     if cond is False:
         return False
+    # Department users may also open parcels raised by or addressed to their own department
+    if user.role == 'employee' and user.department_id and user.department_id in (
+            parcel.sender_department_id, parcel.receiver_department_id):
+        return True
     return Parcel.query.filter(Parcel.id == parcel.id, cond).first() is not None
 
 
