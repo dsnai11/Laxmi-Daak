@@ -5,6 +5,17 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from app.config import Config
 
+def _read_commit():
+    import os, subprocess
+    try:
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return subprocess.check_output(['git', '-c', 'safe.directory=*', 'rev-parse', 'HEAD'], cwd=root,
+                                       stderr=subprocess.DEVNULL, timeout=5).decode().strip()
+    except Exception:
+        return 'unknown'
+
+_COMMIT = _read_commit()
+
 db = SQLAlchemy()
 login_manager = LoginManager()
 socketio = SocketIO()
@@ -226,6 +237,12 @@ def create_app(config_class=Config):
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         return response
+
+    @app.route('/healthz')
+    def healthz():
+        # Public liveness check; the commit lets CI confirm which version is deployed.
+        from flask import jsonify
+        return jsonify(status='ok', commit=_COMMIT)
 
     return app
 

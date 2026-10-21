@@ -1,0 +1,46 @@
+name: CI
+
+# Runs on every pull request and on every push to main (after a merge).
+# Merge only when this is green - the EC2 server deploys whatever lands on main.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Make sure no secrets or databases are tracked
+        run: |
+          bad=$(git ls-files | grep -Ei '(^|/)\.env$|\.db$|\.sqlite3?$|\.pem$|\.key$' || true)
+          if [ -n "$bad" ]; then
+            echo "These files must never be committed:"; echo "$bad"; exit 1
+          fi
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Syntax check
+        run: python -m compileall -q app
+
+      - name: Run tests
+        run: python -m pytest -q

@@ -79,3 +79,7 @@ courier_tracker/
 ## 📄 License
 
 Private — All rights reserved © Laxmi Daak
+
+## Releasing
+
+See [RELEASE.md](RELEASE.md): branch -> pull request -> tests -> merge -> EC2 auto-deploy.
