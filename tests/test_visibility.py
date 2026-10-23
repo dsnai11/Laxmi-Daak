@@ -88,3 +88,41 @@ def test_manager_dashboard_counts_only_own_scope(client_for, make_parcel, ids):
     make_parcel(created_by=ids['user']['manager_a2'])
     assert client_for('manager_a').get('/dashboard/manager').status_code == 200
     assert client_for('manager_a2').get('/dashboard/manager').status_code == 200
+
+
+def test_shared_branch_do_does_not_see_branch_wide_incoming(client_for, make_parcel, ids):
+    # Branch A has several logins, so "addressed to branch A" must not reach every DO of A
+    tn, _ = make_parcel(sender_branch_id=ids['branch']['B'], receiver_branch_id=ids['branch']['A'],
+                        current_branch_id=ids['branch']['B'], created_by=ids['user']['manager_b'],
+                        receiver_name='Someone Else')
+    assert client_for('manager_a').get(f'/dispatch/detail/{tn}').status_code == 403
+    assert client_for('manager_a2').get(f'/dispatch/detail/{tn}').status_code == 403
+    assert client_for('manager_b').get(f'/dispatch/detail/{tn}').status_code == 200   # the sender
+
+
+def test_sender_name_alone_does_not_grant_access(client_for, make_parcel, ids):
+    # Parcels often carry the branch name as sender_name; that must not expose them to the branch's users
+    tn, _ = make_parcel(sender_name='Manager_A2', created_by=ids['user']['manager_b'],
+                        sender_branch_id=ids['branch']['B'], receiver_branch_id=ids['branch']['C'],
+                        current_branch_id=ids['branch']['B'])
+    assert client_for('manager_a2').get(f'/dispatch/detail/{tn}').status_code == 403
+
+
+def test_receiver_sees_parcel_addressed_by_email(client_for, make_parcel, ids):
+    tn, _ = make_parcel(receiver_email='a2@example.com', created_by=ids['user']['manager_b'],
+                        sender_branch_id=ids['branch']['B'], receiver_branch_id=ids['branch']['C'],
+                        current_branch_id=ids['branch']['B'])
+    assert client_for('manager_a2').get(f'/dispatch/detail/{tn}').status_code == 200
+
+
+def test_performance_table_shows_only_own_row(client_for):
+    page = client_for('manager_a').get('/dashboard/manager').get_data(as_text=True)
+    assert 'Manager_A2' not in page and 'Emp_D1' not in page and 'Active Staff' not in page
+
+
+def test_sender_email_alone_does_not_grant_access(client_for, make_parcel, ids):
+    # Two logins sharing a mailbox must not see each other's dispatches
+    tn, _ = make_parcel(sender_email='a2@example.com', created_by=ids['user']['manager_b'],
+                        sender_branch_id=ids['branch']['B'], receiver_branch_id=ids['branch']['C'],
+                        current_branch_id=ids['branch']['B'])
+    assert client_for('manager_a2').get(f'/dispatch/detail/{tn}').status_code == 403
