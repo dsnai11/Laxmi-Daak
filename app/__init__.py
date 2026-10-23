@@ -16,6 +16,20 @@ def _read_commit():
 
 _COMMIT = _read_commit()
 
+
+def _deployed_commit():
+    """Commit recorded by deploy/auto_update.sh; works even if git is not usable by the app user."""
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        with open(os.path.join(root, '.deployed_commit'), encoding='utf-8') as f:
+            value = f.read().strip()
+        if value:
+            return value
+    except OSError:
+        pass
+    return _COMMIT
+
 db = SQLAlchemy()
 login_manager = LoginManager()
 socketio = SocketIO()
@@ -222,7 +236,7 @@ def create_app(config_class=Config):
     def healthz():
         # Public liveness check; the commit lets CI confirm which version is deployed.
         from flask import jsonify
-        return jsonify(status='ok', commit=_COMMIT)
+        return jsonify(status='ok', commit=_deployed_commit())
 
     return app
 
