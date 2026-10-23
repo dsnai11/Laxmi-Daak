@@ -425,6 +425,46 @@ def update_account_credentials(user_id):
     db.session.commit()
     return jsonify({'success': True, 'message': f'Credentials updated for {user.name}! Login ID: {username}'})
 
+@admin_bp.route('/accounts/reset-password/<int:user_id>', methods=['POST'])
+@login_required
+@superadmin_required
+def reset_account_password(user_id):
+    """Issue a new password and show it ONCE. Passwords are never stored in readable form."""
+    import secrets
+    from app.models.security_log import log_security_action
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'success': False, 'message': 'Account not found'}), 404
+
+    chosen = (request.form.get('password') or '').strip()
+    if chosen:
+        if len(chosen) < 8:
+            return jsonify({'success': False, 'message': 'Password must be at least 8 characters long'}), 400
+        new_password = chosen
+    else:
+        # No look-alike characters (0/O, 1/l/I) so it can be read out over the phone
+        alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+        new_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+
+    user.set_password(new_password)
+    user.reset_token = None
+    user.reset_token_expiry = None
+    db.session.commit()
+
+    log_security_action('password_reset_by_admin', f'Admin reset the password of {user.username}.',
+                        user_id=current_user.id, username=current_user.username)
+
+    response = jsonify({
+        'success': True,
+        'username': user.username,
+        'name': user.name,
+        'password': new_password,
+        'message': f'New password issued for {user.username}',
+    })
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
 @admin_bp.route('/accounts/delete/<int:user_id>', methods=['POST'])
 @login_required
 @superadmin_required
