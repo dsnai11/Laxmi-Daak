@@ -38,3 +38,15 @@ def test_security_headers_present(app):
     r = app.test_client().get('/login')
     assert r.headers['X-Content-Type-Options'] == 'nosniff'
     assert r.headers['X-Frame-Options'] == 'SAMEORIGIN'
+
+
+def test_healthz_prefers_commit_written_by_deploy_script(app):
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(root, '.deployed_commit')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write('abc1234deadbeef\n')
+    try:
+        assert app.test_client().get('/healthz').get_json()['commit'] == 'abc1234deadbeef'
+    finally:
+        os.remove(path)
