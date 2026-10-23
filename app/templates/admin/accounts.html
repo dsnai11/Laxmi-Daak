@@ -422,11 +422,6 @@
                     <span style="font-size: 9px; font-weight: 700; color: #64748b;">ID:</span>
                     <code style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 1px 4px; border-radius: 3px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 10.5px; font-weight: 700;">{{ acc.username }}</code>
                   </div>
-                  <div style="display: inline-flex; align-items: center; gap: 3px;">
-                    <span style="font-size: 9px; font-weight: 700; color: #64748b;">PW:</span>
-                    <span title="Passwords are not stored, so they cannot be shown. Use Reset to issue a new one." style="font-size: 11px; color: #94a3b8; letter-spacing: 1px;">••••••••</span>
-                    <button type="button" onclick="resetAccountPassword('{{ acc.id }}', '{{ acc.name|escape }}')" title="Issue a new password and show it once" style="border: 1px solid #fde68a; background: #fffbeb; color: #b45309; border-radius: 4px; padding: 0 5px; font-size: 10px; font-weight: 700; cursor: pointer; line-height: 16px;">🔑 Reset</button>
-                  </div>
                 </div>
               </td>
 
@@ -1180,74 +1175,6 @@ function submitChangeAccCreds(e) {
       hideAdminModal('changeAccCredsModal');
       alert("✅ " + res.message);
       window.location.reload();
-    } else {
-      alert("Error: " + res.message);
-    }
-  })
-  .catch(err => alert("An error occurred"));
-}
-
-function showNewPasswordOnce(res) {
-  // Built with textContent so the password is never interpreted as HTML
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
-  const box = document.createElement('div');
-  box.style.cssText = 'background:#fff;color:#0f172a;border-radius:12px;padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);font-family:inherit;';
-
-  const title = document.createElement('div');
-  title.style.cssText = 'font-size:16px;font-weight:800;margin-bottom:4px;';
-  title.textContent = '🔑 New password issued';
-  const who = document.createElement('div');
-  who.style.cssText = 'font-size:13px;color:#475569;margin-bottom:12px;';
-  who.textContent = res.name + '  (ID: ' + res.username + ')';
-
-  const pw = document.createElement('code');
-  pw.style.cssText = 'display:block;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:20px;font-weight:800;text-align:center;letter-spacing:1px;user-select:all;';
-  pw.textContent = res.password;
-
-  const warn = document.createElement('div');
-  warn.style.cssText = 'font-size:12px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:12px 0;';
-  warn.textContent = 'Copy it now. This password is shown only once and cannot be viewed again. The old password no longer works.';
-
-  const row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
-  const copy = document.createElement('button');
-  copy.type = 'button';
-  copy.textContent = '📋 Copy';
-  copy.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;font-weight:700;cursor:pointer;';
-  copy.onclick = () => {
-    const done = () => { copy.textContent = '✅ Copied'; };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(res.password).then(done, () => {});
-    } else {
-      const sel = window.getSelection(); const range = document.createRange();
-      range.selectNodeContents(pw); sel.removeAllRanges(); sel.addRange(range);
-      try { document.execCommand('copy'); done(); } catch (e) {}
-    }
-  };
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.textContent = 'Done';
-  close.style.cssText = 'padding:8px 16px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;';
-  close.onclick = () => { overlay.remove(); };
-
-  row.append(copy, close);
-  box.append(title, who, pw, warn, row);
-  overlay.append(box);
-  document.body.append(overlay);
-}
-
-function resetAccountPassword(id, name) {
-  const custom = prompt(`Reset password for "${name}".\n\nType a new password (at least 8 characters), or leave empty to generate a random one:`, '');
-  if (custom === null) return;            // cancelled
-  if (custom.trim() !== '' && custom.trim().length < 8) { alert('Password must be at least 8 characters long.'); return; }
-  const formData = new FormData();
-  formData.append('password', custom.trim());
-  fetch(`/admin/accounts/reset-password/${id}`, { method: "POST", body: formData })
-  .then(res => res.json())
-  .then(res => {
-    if(res.success) {
-      showNewPasswordOnce(res);
     } else {
       alert("Error: " + res.message);
     }
