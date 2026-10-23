@@ -45,6 +45,7 @@ find_*.py
 view_*.py
 tmp_*.py
 test_*.py
+!tests/test_*.py
 run_full_qa.py
 deploy_and_run_qa.py
 deploy_fixes.py
