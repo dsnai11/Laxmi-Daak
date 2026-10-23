@@ -312,26 +312,9 @@ def dispatch_list():
         Parcel.status.in_(['pending', 'in_transit'])
     ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None))
 
-    if current_user.role == 'superadmin':
-        pass  # sees all
-    elif current_user.role == 'manager' and current_user.branch_id:
-        overdue_base = overdue_base.filter(or_(
-            Parcel.sender_branch_id == current_user.branch_id,
-            Parcel.current_branch_id == current_user.branch_id,
-            Parcel.receiver_branch_id == current_user.branch_id
-        ))
-    else:
-        # Employee: strict personal match only
-        strict_conds = [Parcel.created_by == current_user.id]
-        if current_user.email and '@' in current_user.email and len(current_user.email.strip()) > 4:
-            em = current_user.email.strip()
-            strict_conds.append(Parcel.receiver_email.ilike(em))
-            strict_conds.append(Parcel.sender_email.ilike(em))
-        if current_user.name and len(current_user.name.strip()) > 2:
-            nm = current_user.name.strip()
-            strict_conds.append(Parcel.receiver_name.ilike(nm))
-            strict_conds.append(Parcel.sender_name.ilike(nm))
-        overdue_base = overdue_base.filter(or_(*strict_conds))
+    scope = get_user_parcel_filter(current_user)
+    if scope is not None:
+        overdue_base = overdue_base.filter(scope)
 
     overdue_count = overdue_base.count()
 
@@ -371,26 +354,9 @@ def overdue_list():
         Parcel.status.in_(['pending', 'in_transit'])
     ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None))
 
-    if current_user.role == 'superadmin':
-        pass  # sees all
-    elif current_user.role == 'manager' and current_user.branch_id:
-        query = query.filter(or_(
-            Parcel.sender_branch_id == current_user.branch_id,
-            Parcel.current_branch_id == current_user.branch_id,
-            Parcel.receiver_branch_id == current_user.branch_id
-        ))
-    else:
-        # Employee: STRICT match only — same as sidebar overdue_count
-        strict_conds = [Parcel.created_by == current_user.id]
-        if current_user.email and '@' in current_user.email and len(current_user.email.strip()) > 4:
-            em = current_user.email.strip()
-            strict_conds.append(Parcel.receiver_email.ilike(em))
-            strict_conds.append(Parcel.sender_email.ilike(em))
-        if current_user.name and len(current_user.name.strip()) > 2:
-            nm = current_user.name.strip()
-            strict_conds.append(Parcel.receiver_name.ilike(nm))
-            strict_conds.append(Parcel.sender_name.ilike(nm))
-        query = query.filter(or_(*strict_conds))
+    scope = get_user_parcel_filter(current_user)
+    if scope is not None:
+        query = query.filter(scope)
 
     parcels = query.order_by(Parcel.due_date.asc()).paginate(page=page, per_page=25, error_out=False)
     overdue_count = parcels.total
@@ -487,7 +453,7 @@ def archive_parcel(parcel_id):
 
     # Authorization: superadmin, creator, or same sender branch
     if current_user.role != 'superadmin':
-        if parcel.created_by != current_user.id and current_user.branch_id != parcel.sender_branch_id:
+        if not user_can_manage_parcel(current_user, parcel):
             return jsonify({'success': False, 'message': 'Not authorized to archive this parcel'}), 403
 
     parcel.is_archived = True
@@ -550,7 +516,7 @@ def unarchive_parcel(parcel_id):
         return jsonify({'success': False, 'message': 'Parcel not found'}), 404
 
     if current_user.role != 'superadmin':
-        if parcel.created_by != current_user.id and current_user.branch_id != parcel.sender_branch_id:
+        if not user_can_manage_parcel(current_user, parcel):
             return jsonify({'success': False, 'message': 'Not authorized to unarchive this parcel'}), 403
 
     parcel.is_archived = False
@@ -634,7 +600,7 @@ def edit_dispatch(tracking_number):
     
     # Check authorization: superadmin, or the person who created (sent) the parcel
     if current_user.role != 'superadmin':
-        if parcel.created_by != current_user.id and current_user.branch_id != parcel.sender_branch_id:
+        if not user_can_manage_parcel(current_user, parcel):
             flash('You are not authorized to edit this dispatch. Only the sender can edit their parcel.', 'error')
             return redirect(url_for('dispatch.dispatch_detail', tracking_number=tracking_number))
             

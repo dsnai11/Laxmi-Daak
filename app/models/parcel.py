@@ -143,14 +143,10 @@ def generate_tracking_number():
 
 
 def user_can_manage_parcel(user, parcel):
-    """Superadmin, the creator, or a user of the sender branch may modify a parcel."""
+    """Only the superadmin or the person who created the parcel may change or delete it."""
     if not user or not user.is_authenticated:
         return False
-    if user.role == 'superadmin':
-        return True
-    if parcel.created_by == user.id:
-        return True
-    return bool(user.branch_id and user.branch_id == parcel.sender_branch_id)
+    return user.role == 'superadmin' or parcel.created_by == user.id
 
 
 def user_can_view_parcel(user, parcel):
@@ -169,17 +165,41 @@ def user_can_view_parcel(user, parcel):
     return Parcel.query.filter(Parcel.id == parcel.id, cond).first() is not None
 
 
+def _personal_conditions(user):
+    """Parcels that belong to this person: created by them, or sent to / from them.
+
+    Exact (case-insensitive) matches only. No first-name prefix matching: it made
+    everybody named "Ravi" see every parcel whose sender starts with "Ravi".
+    """
+    from sqlalchemy import func
+
+    conditions = [Parcel.created_by == user.id]
+
+    if user.email and '@' in user.email:
+        em = user.email.strip().lower()
+        conditions.append(func.lower(Parcel.sender_email) == em)
+        conditions.append(func.lower(Parcel.receiver_email) == em)
+
+    for value in (user.name, user.username):
+        if value and len(value.strip()) > 2:
+            v = value.strip().lower()
+            conditions.append(func.lower(Parcel.sender_name) == v)
+            conditions.append(func.lower(Parcel.receiver_name) == v)
+
+    return conditions
+
+
 def get_user_parcel_filter(user):
     """
     Returns an SQLAlchemy filter condition for parcels visible to the given user.
     - Superadmin: None (unfiltered, sees all).
-    - Branch manager (role == 'manager'):
-        Parcels where their branch is sender, current, or receiver branch.
-    - Department employee / regular user (role == 'employee'):
-        Parcels where user is personally the SENDER (created_by, sender_email, sender_name)
-        OR the RECEIVER (receiver_email, receiver_name).
+    - Everybody else sees only their own parcels (created by them, or sent to / from them).
+    - DO (role == 'manager') additionally sees parcels addressed to their branch and
+      parcels from other branches that are currently held at their branch. They do NOT
+      see parcels other staff of the same branch dispatched.
+    - False when nobody is logged in.
     """
-    from sqlalchemy import or_
+    from sqlalchemy import and_, or_
 
     if not user or not user.is_authenticated:
         return False
@@ -187,34 +207,13 @@ def get_user_parcel_filter(user):
     if user.role == 'superadmin':
         return None
 
+    conditions = _personal_conditions(user)
+
     if user.role == 'manager' and user.branch_id:
-        return or_(
-            Parcel.sender_branch_id == user.branch_id,
+        conditions.append(Parcel.receiver_branch_id == user.branch_id)
+        conditions.append(and_(
             Parcel.current_branch_id == user.branch_id,
-            Parcel.receiver_branch_id == user.branch_id
-        )
-
-    # Employee / personal user: strictly sender or receiver
-    conditions = [Parcel.created_by == user.id]
-
-    if user.email and '@' in user.email:
-        em = user.email.strip()
-        conditions.append(Parcel.sender_email.ilike(em))
-        conditions.append(Parcel.receiver_email.ilike(em))
-
-    if user.name and user.name.strip():
-        nm = user.name.strip()
-        conditions.append(Parcel.sender_name.ilike(nm))
-        conditions.append(Parcel.receiver_name.ilike(nm))
-        parts = nm.split()
-        if len(parts) > 0 and len(parts[0]) >= 3:
-            conditions.append(Parcel.sender_name.ilike(f"{parts[0]}%"))
-            conditions.append(Parcel.receiver_name.ilike(f"{parts[0]}%"))
-
-    if user.username and user.username.strip():
-        un = user.username.strip()
-        conditions.append(Parcel.sender_name.ilike(un))
-        conditions.append(Parcel.receiver_name.ilike(un))
+            or_(Parcel.sender_branch_id.is_(None), Parcel.sender_branch_id != user.branch_id),
+        ))
 
     return or_(*conditions)
-

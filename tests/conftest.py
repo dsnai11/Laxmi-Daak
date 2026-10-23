@@ -64,6 +64,7 @@ def _seed():
         return u
 
     user('manager_a', 'manager', 'A', email='a@example.com')
+    user('manager_a2', 'manager', 'A', email='a2@example.com')  # second DO in the same branch
     user('manager_b', 'manager', 'B', email='b@example.com')
     user('manager_c', 'manager', 'C', email='c@example.com')
     user('emp_d1', 'employee', 'A', '1', email='d1@example.com')

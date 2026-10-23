@@ -1,16 +1,22 @@
 from flask import Blueprint, render_template, request, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models.parcel import Parcel, STATUS_LABELS
+from app.models.parcel import Parcel, STATUS_LABELS, get_user_parcel_filter
 from app.models.branch import Branch
 from app.models.scan_log import ScanLog
 from app.models.user import User
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import false, func, or_, true
 import openpyxl
 from io import BytesIO
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
+
+
+def _scope():
+    """Filter limiting every report to the parcels the current user may see."""
+    cond = get_user_parcel_filter(current_user)
+    return true() if cond is None else cond
 
 @reports_bp.before_request
 @login_required
@@ -30,7 +36,8 @@ def index():
     start_date = datetime.strptime(date_from, '%Y-%m-%d')
     end_date = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1) - timedelta(microseconds=1)
     
-    query = Parcel.query.filter(Parcel.dispatched_at.between(start_date, end_date))
+    scope = _scope()
+    query = Parcel.query.filter(scope, Parcel.dispatched_at.between(start_date, end_date))
     
     stats = {
         'total': query.count(),
@@ -44,7 +51,7 @@ def index():
         func.date(Parcel.dispatched_at).label('date'),
         func.count(Parcel.id).label('count')
     ).filter(
-        Parcel.dispatched_at.between(start_date, end_date)
+        scope, Parcel.dispatched_at.between(start_date, end_date)
     ).group_by(
         func.date(Parcel.dispatched_at)
     ).order_by('date').all()
@@ -57,7 +64,7 @@ def index():
         Parcel.status,
         func.count(Parcel.id)
     ).filter(
-        Parcel.dispatched_at.between(start_date, end_date)
+        scope, Parcel.dispatched_at.between(start_date, end_date)
     ).group_by(Parcel.status).all()
     
     status_labels = [x[0].replace('_', ' ').title() for x in status_stats]
@@ -70,7 +77,7 @@ def index():
     ).join(
         Parcel, Parcel.sender_branch_id == Branch.id
     ).filter(
-        Parcel.dispatched_at.between(start_date, end_date)
+        scope, Parcel.dispatched_at.between(start_date, end_date)
     ).group_by(Branch.id).order_by(func.count(Parcel.id).desc()).limit(5).all()
     
     branch_labels = [x[0] for x in b_stats]
@@ -91,7 +98,7 @@ def pending():
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     
-    query = Parcel.query.filter(Parcel.status.in_(['pending', 'in_transit']))
+    query = Parcel.query.filter(_scope(), Parcel.status.in_(['pending', 'in_transit']))
     if branch_id:
         query = query.filter(Parcel.current_branch_id == branch_id)
     if date_from:
@@ -121,29 +128,26 @@ def export_excel():
     
     query = Parcel.query
     
-    # 1. Branch & Direction Filtering
+    # 1. Scope & Direction Filtering
     if not current_user.is_superadmin():
-        # Regular user / manager: scope to their branch or personal account
-        user_branch_id = current_user.branch_id
-        if user_branch_id:
-            if direction == 'sent':
-                query = query.filter((Parcel.sender_branch_id == user_branch_id) | (Parcel.created_by == current_user.id))
-            elif direction == 'received':
-                query = query.filter((Parcel.receiver_branch_id == user_branch_id) | (Parcel.receiver_email == current_user.email))
-            else: # both
-                query = query.filter(
-                    (Parcel.sender_branch_id == user_branch_id) | 
-                    (Parcel.receiver_branch_id == user_branch_id) | 
-                    (Parcel.created_by == current_user.id) |
-                    (Parcel.receiver_email == current_user.email)
-                )
-        else:
-            if direction == 'sent':
-                query = query.filter(Parcel.created_by == current_user.id)
-            elif direction == 'received':
-                query = query.filter(Parcel.receiver_email == current_user.email)
-            else:
-                query = query.filter((Parcel.created_by == current_user.id) | (Parcel.receiver_email == current_user.email))
+        # Everybody else: only their own parcels (same scope as the parcel list)
+        query = query.filter(_scope())
+        em = (current_user.email or '').strip().lower()
+        nm = (current_user.name or '').strip().lower()
+        if direction == 'sent':
+            sent = [Parcel.created_by == current_user.id]
+            if em:
+                sent.append(func.lower(Parcel.sender_email) == em)
+            query = query.filter(or_(*sent))
+        elif direction == 'received':
+            received = []
+            if current_user.role == 'manager' and current_user.branch_id:
+                received.append(Parcel.receiver_branch_id == current_user.branch_id)
+            if em:
+                received.append(func.lower(Parcel.receiver_email) == em)
+            if nm:
+                received.append(func.lower(Parcel.receiver_name) == nm)
+            query = query.filter(or_(*received)) if received else query.filter(false())
     else:
         # Superadmin: check if specific branch requested
         if branch_id and branch_id != 'all' and branch_id != '0':
