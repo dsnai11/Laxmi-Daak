@@ -1,0 +1,41 @@
+name: Verify production deploy
+
+# The EC2 server pulls main by itself every ~5 minutes (see deploy/README.md).
+# This job waits until the live site reports the commit that was just merged,
+# so you know the release is really in production before making the repo private.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: verify-deploy
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Wait for live site to run this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LIVE_URL: ${{ vars.LIVE_URL || 'https://laxmidaak.lifc.in' }}
+      EXPECTED: ${{ github.sha }}
+    steps:
+      - name: Poll /healthz until the new commit is live
+        run: |
+          echo "Expecting commit $EXPECTED on $LIVE_URL"
+          for i in $(seq 1 60); do
+            body=$(curl -s -m 15 "$LIVE_URL/healthz" || true)
+            code=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$LIVE_URL/login" || true)
+            live=$(printf '%s' "$body" | sed -n 's/.*"commit": *"\([0-9a-f]*\|unknown\)".*/\1/p')
+            echo "try $i: /login=$code live_commit=${live:-none}"
+            if [ "$code" = "200" ] && [ "$live" = "$EXPECTED" ]; then
+              echo "OK: production is running $EXPECTED"; exit 0
+            fi
+            if [ "$code" = "200" ] && [ "$live" = "unknown" ]; then
+              echo "::warning::Site is healthy but cannot report its commit (git not readable by the app user)."; exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Production did not report $EXPECTED within 15 minutes. Check: journalctl -u courier-autoupdate.service -n 50"
+          exit 1

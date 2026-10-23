@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.user import User
 from app.models.branch import Branch
-from app.models.parcel import Parcel
+from app.models.parcel import Parcel, get_user_parcel_filter
 from app.models.scan_log import ScanLog
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -59,7 +59,7 @@ def admin_dashboard():
         'in_transit': Parcel.query.filter_by(status='in_transit').filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count(),
         'delivered': Parcel.query.filter_by(status='delivered').filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count(),
         'failed': Parcel.query.filter_by(status='failed').filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count(),
-        'delivered_today': Parcel.query.filter(Parcel.delivered_at >= today_start, Parcel.status=='delivered').filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count(),
+        'delivered_today': Parcel.query.filter(Parcel.delivered_at >= today_start, Parcel.status=='delivered').count(),
         'overdue': overdue_count
     }
     
@@ -117,24 +117,27 @@ def manager_dashboard():
     pending_deliveries = []
 
     if branch_id:
-        branch_total = Parcel.query.filter(
-            (Parcel.sender_branch_id==branch_id) | 
-            (Parcel.current_branch_id==branch_id) | 
-            (Parcel.receiver_branch_id==branch_id)
-        ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count()
-        pending = Parcel.query.filter(
-            ((Parcel.current_branch_id == branch_id) | (Parcel.receiver_branch_id == branch_id)),
-            Parcel.status.in_(['pending', 'in_transit'])
-        ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count()
-        dispatched_today = Parcel.query.filter(Parcel.dispatched_at >= today_start, Parcel.sender_branch_id==branch_id).filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count()
-        delivered_today = Parcel.query.filter(Parcel.delivered_at >= today_start, Parcel.status=='delivered', Parcel.current_branch_id==branch_id).filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count()
-        overdue = Parcel.query.filter(
-            Parcel.due_date != None,
-            Parcel.due_date < today_date,
-            Parcel.status.in_(['pending', 'in_transit']),
-            (Parcel.sender_branch_id==branch_id) | (Parcel.current_branch_id==branch_id) | (Parcel.receiver_branch_id==branch_id)
-        ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count()
-        
+        # Same scope as the parcel list: the DO's own parcels + parcels addressed to / held at the branch
+        scope = get_user_parcel_filter(current_user)
+
+        def mine():
+            return Parcel.query.filter(scope)
+
+        def not_archived(q):
+            return q.filter((Parcel.is_archived == False) | (Parcel.is_archived == None))
+
+        open_statuses = ['pending', 'in_transit']
+        branch_total = not_archived(mine()).count()
+        pending = not_archived(mine()).filter(Parcel.status.in_(open_statuses)).count()
+        dispatched_today = not_archived(mine()).filter(
+            Parcel.dispatched_at >= today_start, Parcel.sender_branch_id == branch_id).count()
+        # Delivered parcels are archived automatically, so do not exclude archived ones here
+        delivered_today = mine().filter(
+            Parcel.delivered_at >= today_start, Parcel.status == 'delivered').count()
+        overdue = not_archived(mine()).filter(
+            Parcel.due_date != None, Parcel.due_date < today_date,
+            Parcel.status.in_(open_statuses)).count()
+
         employees_raw = User.query.filter_by(branch_id=branch_id, is_active=True).all()
         for emp in employees_raw:
             emp_scans_today = ScanLog.query.filter(
@@ -150,7 +153,9 @@ def manager_dashboard():
                 'active': emp.is_active
             })
             
-        recent_scans_raw = ScanLog.query.filter_by(branch_id=branch_id).order_by(ScanLog.timestamp.desc()).limit(15).all()
+        recent_scans_raw = ScanLog.query.filter(
+            ScanLog.parcel_id.in_(db.session.query(Parcel.id).filter(scope))
+        ).order_by(ScanLog.timestamp.desc()).limit(15).all()
         recent_scans = [
             {
                 'time': s.timestamp.strftime('%I:%M %p'),
@@ -159,10 +164,9 @@ def manager_dashboard():
             } for s in recent_scans_raw
         ]
         
-        pending_parcels = Parcel.query.filter(
-            ((Parcel.current_branch_id==branch_id) | (Parcel.receiver_branch_id==branch_id)),
-            Parcel.status.in_(['pending','in_transit'])
-        ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).order_by(Parcel.priority.desc(), Parcel.dispatched_at).limit(10).all()
+        pending_parcels = not_archived(mine()).filter(
+            Parcel.status.in_(open_statuses)
+        ).order_by(Parcel.priority.desc(), Parcel.dispatched_at).limit(10).all()
         
         pending_deliveries = [
             {
@@ -207,35 +211,8 @@ def employee_dashboard():
     from sqlalchemy import or_
     today_date = date.today()
 
-    # Strictly personal parcel condition for employee
-    emp_personal_cond = [Parcel.created_by == current_user.id]
-    if current_user.email and '@' in current_user.email:
-        em = current_user.email.strip()
-        emp_personal_cond.append(Parcel.receiver_email.ilike(em))
-        emp_personal_cond.append(Parcel.sender_email.ilike(em))
-    if current_user.name and current_user.name.strip():
-        nm = current_user.name.strip()
-        emp_personal_cond.append(Parcel.receiver_name.ilike(nm))
-        emp_personal_cond.append(Parcel.sender_name.ilike(nm))
-        parts = nm.split()
-        if len(parts) > 0 and len(parts[0]) >= 3:
-            emp_personal_cond.append(Parcel.receiver_name.ilike(f"{parts[0]}%"))
-            emp_personal_cond.append(Parcel.sender_name.ilike(f"{parts[0]}%"))
-    if current_user.username and current_user.username.strip():
-        un = current_user.username.strip()
-        emp_personal_cond.append(Parcel.receiver_name.ilike(un))
-        emp_personal_cond.append(Parcel.sender_name.ilike(un))
-
-    # If user is a branch employee with NO department (working at a specific branch):
-    if current_user.branch_id and not current_user.department_id:
-        pending_filter = or_(
-            Parcel.current_branch_id == current_user.branch_id,
-            Parcel.receiver_branch_id == current_user.branch_id,
-            *emp_personal_cond
-        )
-    else:
-        # Department employee: strictly personal (never leaks branch or other department parcels)
-        pending_filter = or_(*emp_personal_cond)
+    # Same strict scope as the parcel list: only the user's own parcels
+    pending_filter = get_user_parcel_filter(current_user)
 
     pending_count = Parcel.query.filter(
         pending_filter,
@@ -252,7 +229,7 @@ def employee_dashboard():
         Parcel.due_date != None,
         Parcel.due_date < today_date,
         Parcel.status.in_(['pending', 'in_transit']),
-        or_(*emp_personal_cond)
+        pending_filter
     ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None)).count()
 
     stats = {

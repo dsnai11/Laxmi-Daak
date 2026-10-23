@@ -43,7 +43,7 @@ class User(UserMixin, db.Model):
         if self.role == 'superadmin':
             return 'Admin'
         elif self.role == 'manager':
-            return 'Branch Manager'
+            return 'DO'
         elif self.role == 'employee':
             return 'Department'
         return self.role.title()

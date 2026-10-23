@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Manager Dashboard{% endblock %}
+{% block title %}DO Dashboard{% endblock %}
 {% block page_title %}Branch Dashboard{% endblock %}
 {% block breadcrumb %}Dashboard / {{ current_user.branch_name }}{% endblock %}
 
@@ -14,7 +14,7 @@
         <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); font-size: 11px; font-weight: 600;">CODE: {{ current_user.branch_code }}</span>
       </div>
       <div class="welcome-meta-row">
-        <span class="meta-pill role-pill">Branch Manager</span>
+        <span class="meta-pill role-pill">DO</span>
         <span class="meta-pill">👥 {{ employees|length }} Active Staff</span>
       </div>
     </div>

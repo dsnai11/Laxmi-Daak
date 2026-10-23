@@ -5,6 +5,17 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from app.config import Config
 
+def _read_commit():
+    import os, subprocess
+    try:
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return subprocess.check_output(['git', '-c', 'safe.directory=*', 'rev-parse', 'HEAD'], cwd=root,
+                                       stderr=subprocess.DEVNULL, timeout=5).decode().strip()
+    except Exception:
+        return 'unknown'
+
+_COMMIT = _read_commit()
+
 db = SQLAlchemy()
 login_manager = LoginManager()
 socketio = SocketIO()
@@ -105,27 +116,10 @@ def create_app(config_class=Config):
                         Parcel.status.in_(['pending', 'in_transit'])
                     ).filter((Parcel.is_archived == False) | (Parcel.is_archived == None))
 
-                    if current_user.role == 'superadmin':
-                        pass  # superadmin sees all overdue
-                    elif current_user.role == 'manager' and current_user.branch_id:
-                        q = q.filter(or_(
-                            Parcel.sender_branch_id == current_user.branch_id,
-                            Parcel.current_branch_id == current_user.branch_id,
-                            Parcel.receiver_branch_id == current_user.branch_id
-                        ))
-                    else:
-                        # Employee: STRICT match — only exact email or exact full name
-                        # Never use fuzzy first-name prefix to avoid leaking other users' data
-                        strict_conds = [Parcel.created_by == current_user.id]
-                        if current_user.email and '@' in current_user.email and len(current_user.email.strip()) > 4:
-                            em = current_user.email.strip()
-                            strict_conds.append(Parcel.receiver_email.ilike(em))
-                            strict_conds.append(Parcel.sender_email.ilike(em))
-                        if current_user.name and len(current_user.name.strip()) > 2:
-                            nm = current_user.name.strip()
-                            strict_conds.append(Parcel.receiver_name.ilike(nm))
-                            strict_conds.append(Parcel.sender_name.ilike(nm))
-                        q = q.filter(or_(*strict_conds))
+                    from app.models.parcel import get_user_parcel_filter
+                    scope = get_user_parcel_filter(current_user)
+                    if scope is not None:
+                        q = q.filter(scope)
 
                     overdue_count = q.count()
                 except Exception as e:
@@ -157,9 +151,6 @@ def create_app(config_class=Config):
                         filters.append(Parcel.receiver_email.ilike(email_clean))
                     if name_clean and len(name_clean) > 2:
                         filters.append(Parcel.receiver_name.ilike(name_clean))
-                        parts = name_clean.split()
-                        if len(parts) > 1 and len(parts[0]) >= 4:
-                            filters.append(Parcel.receiver_name.ilike(f"{parts[0]}%"))
                     if username_clean and len(username_clean) > 2:
                         filters.append(Parcel.receiver_name.ilike(username_clean))
 
@@ -226,6 +217,12 @@ def create_app(config_class=Config):
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         return response
+
+    @app.route('/healthz')
+    def healthz():
+        # Public liveness check; the commit lets CI confirm which version is deployed.
+        from flask import jsonify
+        return jsonify(status='ok', commit=_COMMIT)
 
     return app
 

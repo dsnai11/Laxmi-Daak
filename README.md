@@ -7,8 +7,8 @@ A full-featured internal courier & parcel tracking web application built with **
 - 📦 **Parcel Dispatch & Tracking** — Create, track and manage parcels with real-time status updates
 - 🏢 **Multi-Branch Support** — Manage deliveries across multiple branches
 - 🏛️ **Department Queries** — Department employees can raise dispatch queries; admin picks up and dispatches
-- 📊 **Dashboard** — Role-based dashboards for Superadmin, Manager, and Employees
-- 🔐 **Role-Based Access Control** — Superadmin, Manager, Branch Employee, Department Employee
+- 📊 **Dashboard** — Role-based dashboards for Superadmin, DO, and Employees
+- 🔐 **Role-Based Access Control** — Superadmin, DO, Branch Employee, Department Employee
 - ⏰ **Overdue Alerts** — Automatic overdue detection and email notifications
 - 📁 **Archive** — Delivered parcels archived with full history
 - 🖨️ **Label Printing** — QR code based parcel labels
@@ -79,3 +79,7 @@ courier_tracker/
 ## 📄 License
 
 Private — All rights reserved © Laxmi Daak
+
+## Releasing
+
+See [RELEASE.md](RELEASE.md): branch -> pull request -> tests -> merge -> EC2 auto-deploy.
