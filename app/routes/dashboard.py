@@ -138,7 +138,8 @@ def manager_dashboard():
             Parcel.due_date != None, Parcel.due_date < today_date,
             Parcel.status.in_(open_statuses)).count()
 
-        employees_raw = User.query.filter_by(branch_id=branch_id, is_active=True).all()
+        # Performance table shows only the logged-in user, never colleagues
+        employees_raw = [current_user._get_current_object()]
         for emp in employees_raw:
             emp_scans_today = ScanLog.query.filter(
                 ScanLog.employee_id == emp.id,

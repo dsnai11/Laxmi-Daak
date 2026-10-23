@@ -166,37 +166,54 @@ def user_can_view_parcel(user, parcel):
 
 
 def _personal_conditions(user):
-    """Parcels that belong to this person: created by them, or sent to / from them.
+    """Parcels that belong to this person.
 
-    Exact (case-insensitive) matches only. No first-name prefix matching: it made
-    everybody named "Ravi" see every parcel whose sender starts with "Ravi".
+    - sent by them: created by their login (nothing else counts as "sent by")
+    - sent to them: their e-mail or their exact name is the receiver
+    Exact (case-insensitive) matches only. The sender name and sender e-mail are
+    deliberately not matched: they are prefilled with the branch name / a shared mailbox
+    ("JAIPUR HO", courier@lifc.in), which made every login sharing them see every parcel
+    that branch sent. No first-name prefix matching either.
     """
     from sqlalchemy import func
 
     conditions = [Parcel.created_by == user.id]
 
     if user.email and '@' in user.email:
-        em = user.email.strip().lower()
-        conditions.append(func.lower(Parcel.sender_email) == em)
-        conditions.append(func.lower(Parcel.receiver_email) == em)
+        conditions.append(func.lower(Parcel.receiver_email) == user.email.strip().lower())
 
     for value in (user.name, user.username):
         if value and len(value.strip()) > 2:
-            v = value.strip().lower()
-            conditions.append(func.lower(Parcel.sender_name) == v)
-            conditions.append(func.lower(Parcel.receiver_name) == v)
+            conditions.append(func.lower(Parcel.receiver_name) == value.strip().lower())
 
     return conditions
+
+
+def branch_is_shared(branch_id):
+    """True when several people log in for the same branch (e.g. Jaipur HO).
+
+    A branch with a single login is that login's only user, so everything addressed
+    to / held at the branch belongs to it. In a shared branch that would show one
+    person's parcels to everybody else, so only personal matches count there.
+    """
+    from app.models.user import User
+
+    if not branch_id:
+        return False
+    return User.query.filter(
+        User.branch_id == branch_id,
+        User.is_active == True,  # noqa: E712
+        User.role != 'superadmin',
+    ).count() > 1
 
 
 def get_user_parcel_filter(user):
     """
     Returns an SQLAlchemy filter condition for parcels visible to the given user.
     - Superadmin: None (unfiltered, sees all).
-    - Everybody else sees only their own parcels (created by them, or sent to / from them).
-    - DO (role == 'manager') additionally sees parcels addressed to their branch and
-      parcels from other branches that are currently held at their branch. They do NOT
-      see parcels other staff of the same branch dispatched.
+    - Everybody else sees only the parcels they sent or that are addressed to them.
+    - A DO (role == 'manager') who is the only login of their branch also sees parcels
+      addressed to / held at that branch.
     - False when nobody is logged in.
     """
     from sqlalchemy import and_, or_
@@ -209,7 +226,7 @@ def get_user_parcel_filter(user):
 
     conditions = _personal_conditions(user)
 
-    if user.role == 'manager' and user.branch_id:
+    if user.role == 'manager' and user.branch_id and not branch_is_shared(user.branch_id):
         conditions.append(Parcel.receiver_branch_id == user.branch_id)
         conditions.append(and_(
             Parcel.current_branch_id == user.branch_id,
