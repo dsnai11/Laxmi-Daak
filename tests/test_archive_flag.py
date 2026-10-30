@@ -25,6 +25,24 @@ def test_rescanning_a_delivered_parcel_brings_it_back_to_all_parcels(client_for,
     assert tn not in admin.get('/dispatch/archive').get_data(as_text=True)
 
 
+def test_changing_status_to_in_progress_always_unarchives(app, make_parcel):
+    # Guard for every code path (scan, admin pickup, QR page, future code): status and archive
+    # flag can never disagree again.
+    tn, pid = make_parcel(status='delivered')
+    with app.app_context():
+        p = db.session.get(Parcel, pid)
+        p.is_archived = True
+        db.session.commit()
+        for status in ('in_transit', 'pending', 'picked_up', 'query_raised', 'delivered_pending'):
+            p.is_archived = True
+            p.status = status
+            assert p.is_archived is False, status
+        p.status = 'delivered'            # final statuses are left alone
+        p.is_archived = True
+        db.session.commit()
+        assert db.session.get(Parcel, pid).is_archived is True
+
+
 def test_startup_repair_unarchives_parcels_that_are_still_active(app, make_parcel):
     tn, pid = make_parcel(status='in_transit')
     done, did = make_parcel(status='delivered')

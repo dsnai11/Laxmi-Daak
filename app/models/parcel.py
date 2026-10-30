@@ -1,6 +1,7 @@
 import random
 import json
 from datetime import datetime
+from sqlalchemy.orm import validates
 from app import db
 
 STATUS_LABELS = {
@@ -99,6 +100,19 @@ class Parcel(db.Model):
     receiver_department = db.relationship('Department', foreign_keys=[receiver_department_id])
     scan_logs = db.relationship('ScanLog', backref='parcel', lazy='dynamic', order_by='ScanLog.timestamp')
     
+    @validates('status')
+    def _keep_active_parcels_listed(self, key, value):
+        """A parcel that is still in progress can never stay archived.
+
+        Archived parcels are hidden from All Parcels. Whatever code path changes the status
+        (scan, admin pickup, QR page, ...), moving a parcel back to an in-progress status
+        takes it out of the archive, so it cannot be "In Transit" and invisible at once.
+        """
+        if value in ACTIVE_STATUSES and self.is_archived:
+            self.is_archived = False
+            self.archived_at = None
+        return value
+
     @property
     def photos(self):
         try:
