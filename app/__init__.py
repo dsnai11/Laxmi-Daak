@@ -77,6 +77,16 @@ def create_app(config_class=Config):
             db.session.rollback()
             print(f"[WARN] Could not scrub password_plain: {e}")
 
+        # Repair parcels that are archived although they are still on the move (idempotent)
+        from app.models.parcel import unarchive_active_parcels
+        try:
+            repaired = unarchive_active_parcels()
+            if repaired:
+                print(f"[FIX] Moved {repaired} in-progress parcel(s) back to All Parcels.")
+        except Exception as e:
+            db.session.rollback()
+            print(f"[WARN] Could not repair archived flags: {e}")
+
         # Seed default items if empty
         if Item.query.count() == 0:
             default_items = ['Documents / Files', 'Laptop / Computer Parts', 'Clothes / Apparel', 'Medicines / Medical Kits', 'Books / Stationery', 'Electronics / Gadgets', 'Other Packaged Goods']
