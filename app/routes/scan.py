@@ -144,7 +144,12 @@ def process_scan():
             if new_status == 'delivered':
                 parcel.is_archived = True
                 parcel.archived_at = datetime.utcnow()
-            
+            elif parcel.is_archived:
+                # A delivered (archived) parcel is on the move again: put it back in All Parcels,
+                # otherwise it shows "In Transit" in the scanner but is missing from the list.
+                parcel.is_archived = False
+                parcel.archived_at = None
+
         parcel.status = new_status
         
         if current_user.branch_id:

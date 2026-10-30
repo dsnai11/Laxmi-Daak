@@ -142,6 +142,21 @@ def generate_tracking_number():
     return f'CRR-{now.year}-{rand_part}'
 
 
+ACTIVE_STATUSES = ('pending', 'in_transit', 'picked_up', 'query_raised', 'delivered_pending')
+
+
+def unarchive_active_parcels():
+    """Un-archive parcels whose status says they are still in progress. Returns how many."""
+    parcels = Parcel.query.filter(Parcel.is_archived == True,  # noqa: E712
+                                  Parcel.status.in_(ACTIVE_STATUSES)).all()
+    for p in parcels:
+        p.is_archived = False
+        p.archived_at = None
+    if parcels:
+        db.session.commit()
+    return len(parcels)
+
+
 def user_can_manage_parcel(user, parcel):
     """Only the superadmin or the person who created the parcel may change or delete it."""
     if not user or not user.is_authenticated:
