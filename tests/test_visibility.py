@@ -126,3 +126,37 @@ def test_sender_email_alone_does_not_grant_access(client_for, make_parcel, ids):
                         sender_branch_id=ids['branch']['B'], receiver_branch_id=ids['branch']['C'],
                         current_branch_id=ids['branch']['B'])
     assert client_for('manager_a2').get(f'/dispatch/detail/{tn}').status_code == 403
+
+
+def test_single_login_branch_sees_parcel_dispatched_for_it_by_someone_else(client_for, make_parcel, ids):
+    # e.g. the admin / HO dispatches a parcel with branch C as the sender branch
+    tn, _ = make_parcel(sender_branch_id=ids['branch']['C'], receiver_branch_id=ids['branch']['B'],
+                        current_branch_id=ids['branch']['C'], created_by=ids['user']['manager_a'])
+    c = client_for('manager_c')
+    assert c.get(f'/dispatch/detail/{tn}').status_code == 200
+    assert tn in c.get('/dispatch/list').get_data(as_text=True)
+
+
+def test_shared_branch_user_gets_parcel_after_scanning_it(client_for, make_parcel, ids):
+    tn, _ = make_parcel(created_by=ids['user']['manager_a'])          # A -> B, A is a shared branch
+    c = client_for('manager_a2')
+    assert c.get(f'/dispatch/detail/{tn}').status_code == 403
+    assert c.post('/scan/process', json={'tracking_number': tn, 'action': 'received'}).status_code == 200
+    assert c.get(f'/dispatch/detail/{tn}').status_code == 200
+    assert tn in c.get('/dispatch/list').get_data(as_text=True)
+
+
+def test_opening_a_tracking_link_does_not_grant_access(client_for, make_parcel, ids):
+    tn, _ = make_parcel(created_by=ids['user']['manager_b'], sender_branch_id=ids['branch']['B'],
+                        receiver_branch_id=ids['branch']['C'], current_branch_id=ids['branch']['B'])
+    c = client_for('manager_a2')
+    c.get(f'/track/{tn}')                                              # logs a 'qr_scanned' entry
+    assert c.get(f'/dispatch/detail/{tn}').status_code == 403
+
+
+def test_department_user_sees_parcels_addressed_to_their_department_in_the_list(client_for, make_parcel, ids):
+    tn, _ = make_parcel(created_by=ids['user']['manager_b'], sender_branch_id=ids['branch']['B'],
+                        receiver_branch_id=ids['branch']['A'], current_branch_id=ids['branch']['B'],
+                        receiver_department_id=ids['dept']['1'], receiver_name='Dept One Person')
+    assert tn in client_for('emp_d1').get('/dispatch/list').get_data(as_text=True)
+    assert tn not in client_for('emp_d2').get('/dispatch/list').get_data(as_text=True)
