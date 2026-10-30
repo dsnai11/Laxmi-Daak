@@ -165,6 +165,10 @@ def user_can_view_parcel(user, parcel):
     return Parcel.query.filter(Parcel.id == parcel.id, cond).first() is not None
 
 
+# Scan actions that mean "this person physically had the parcel in their hands"
+HANDLING_ACTIONS = ('received', 'out_for_delivery', 'delivered', 'failed', 'returned')
+
+
 def _personal_conditions(user):
     """Parcels that belong to this person.
 
@@ -211,12 +215,16 @@ def get_user_parcel_filter(user):
     """
     Returns an SQLAlchemy filter condition for parcels visible to the given user.
     - Superadmin: None (unfiltered, sees all).
-    - Everybody else sees only the parcels they sent or that are addressed to them.
-    - A DO (role == 'manager') who is the only login of their branch also sees parcels
-      addressed to / held at that branch.
+    - Everybody else sees the parcels they sent, that are addressed to them, or that they
+      physically handled (scanned as received / out for delivery / delivered / failed / returned).
+    - Department users also see parcels addressed to their department.
+    - A DO (role == 'manager') who is the only login of their branch also sees every parcel
+      sent from, addressed to, or held at that branch (even if another login, e.g. the admin,
+      created it for the branch).
     - False when nobody is logged in.
     """
-    from sqlalchemy import and_, or_
+    from sqlalchemy import and_, or_, select
+    from app.models.scan_log import ScanLog
 
     if not user or not user.is_authenticated:
         return False
@@ -226,7 +234,20 @@ def get_user_parcel_filter(user):
 
     conditions = _personal_conditions(user)
 
+    # Parcels this person physically handled. The 'qr_scanned' / 'edited' / 'dispatched'
+    # log entries are deliberately excluded: merely opening a tracking link must not grant access.
+    conditions.append(Parcel.id.in_(
+        select(ScanLog.parcel_id).where(
+            ScanLog.employee_id == user.id,
+            ScanLog.action.in_(HANDLING_ACTIONS),
+        )
+    ))
+
+    if user.role == 'employee' and user.department_id:
+        conditions.append(Parcel.receiver_department_id == user.department_id)
+
     if user.role == 'manager' and user.branch_id and not branch_is_shared(user.branch_id):
+        conditions.append(Parcel.sender_branch_id == user.branch_id)
         conditions.append(Parcel.receiver_branch_id == user.branch_id)
         conditions.append(and_(
             Parcel.current_branch_id == user.branch_id,
