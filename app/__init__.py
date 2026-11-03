@@ -53,7 +53,16 @@ def create_app(config_class=Config):
         from flask import flash, redirect, url_for
         flash('Session refreshed. Please click Sign In again.', 'info')
         return redirect(url_for('auth.login'))
-        
+
+    @app.errorhandler(403)
+    def handle_forbidden(e):
+        # Friendly page instead of the bare "Forbidden" text for logged-in users
+        from flask import render_template, request
+        from flask_login import current_user
+        if request.path.startswith('/api/') or not current_user.is_authenticated:
+            return e
+        return render_template('errors/403.html'), 403
+
     with app.app_context():
         # Import models to register them with SQLAlchemy
         from app.models.user import User

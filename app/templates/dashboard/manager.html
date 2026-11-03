@@ -18,7 +18,9 @@
       </div>
     </div>
     <div class="welcome-action">
+      {% if current_user.has_permission('can_new_dispatch') %}
       <a href="{{ url_for('dispatch.new_dispatch') }}" class="btn btn-sm btn-ghost" style="border: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;">+ New Dispatch</a>
+      {% endif %}
       <a href="{{ url_for('scan.scanner') }}" class="btn-scan-action">
         <span>📷</span> SCAN QR CODE
       </a>

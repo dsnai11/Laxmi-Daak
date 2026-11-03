@@ -45,7 +45,7 @@
       <a href="{{ url_for('dispatch.dispatch_list') }}" style="color: var(--text-muted); font-size: 12px; text-decoration: none; margin-left: 8px;">Clear</a>
     </form>
     
-    {% if current_user.role in ('superadmin', 'manager') %}
+    {% if current_user.role in ('superadmin', 'manager') and current_user.has_permission('can_new_dispatch') %}
     <div>
       <a href="{{ url_for('dispatch.new_dispatch') }}" class="btn btn-primary" style="background: linear-gradient(135deg, #4f8ef7, #8b5cf6); border: none; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
         <span>+</span> New Dispatch
