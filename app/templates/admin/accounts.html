@@ -490,7 +490,7 @@
               <td style="padding: 7px 8px; text-align: right; white-space: nowrap; width: 145px; min-width: 145px; vertical-align: middle;">
                 <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; white-space: nowrap;">
                   <button type="button"
-                          onclick="openEditAccount('{{ acc.id }}', '{{ acc.name|escape }}', '{{ acc.username|escape }}', '{{ acc.role }}', '{{ acc.branch_id or '' }}', '{{ acc.department_id or '' }}', '{{ acc.email|escape }}', '{{ acc.phone|escape }}', '{{ acc.branch.address|escape if acc.branch else '' }}', '{{ acc.get_permissions_string() }}')"
+                          onclick="openEditAccount('{{ acc.id }}', '{{ acc.name|escape }}', '{{ acc.username|escape }}', '{{ acc.role }}', '{{ acc.branch_id or '' }}', '{{ acc.department_id or '' }}', '{{ acc.email|escape }}', '{{ acc.phone|escape }}', '{{ acc.branch.address|escape if acc.branch else '' }}', '{{ acc.effective_permissions_string() }}')"
                           class="action-pill-btn edit-pill"
                           title="Edit Account Details">
                     <span>✏️</span> <span>Edit</span>

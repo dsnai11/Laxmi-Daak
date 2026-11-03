@@ -4,6 +4,14 @@ from datetime import datetime
 import bcrypt
 import json
 
+# The switches shown in Accounts -> Add / Edit
+PERMISSION_KEYS = (
+    'can_scan', 'can_raise_query', 'can_dispatch_queries',
+    'can_new_dispatch', 'can_bulk_dispatch', 'can_view_parcels',
+    'can_overdue', 'can_archive', 'can_billing_rates', 'can_reports',
+)
+
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
@@ -80,6 +88,16 @@ class User(UserMixin, db.Model):
     def get_permissions_string(self):
         perms = self.get_permissions()
         return ",".join([k for k, v in perms.items() if v])
+
+    def effective_permissions_string(self):
+        """Permissions this account really has right now, defaults included.
+
+        The Edit Account form saves every checkbox. It must therefore start from what the
+        account can actually do; starting from only the explicitly saved flags showed
+        accounts with default permissions as "nothing allowed", and saving the form
+        (even just to change an address) switched New Dispatch, Scan, ... off for them.
+        """
+        return ",".join(k for k in PERMISSION_KEYS if self.has_permission(k))
 
     def set_permissions(self, perms_dict):
         self.permissions = json.dumps(perms_dict)
