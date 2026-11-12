@@ -6,6 +6,7 @@ from app.models.department import Department
 from app.models.parcel import Parcel, generate_tracking_number, get_user_parcel_filter, user_can_manage_parcel, user_can_view_parcel
 from app.models.scan_log import ScanLog
 from app.models.user import User
+from app.utils import ist_today_start
 from app.services.qr_service import generate_qr_code
 from app.services.email_service import send_dispatch_notification, send_dispatch_receiver_notification, send_dispatch_sender_confirmation, send_parcel_cancellation_notification
 from datetime import datetime
@@ -229,15 +230,18 @@ def dispatch_list():
     dept_filter = request.args.get('department', '')
     filter_type = request.args.get('filter', '').strip()
     
-    query = Parcel.query.filter(
-        (Parcel.is_archived == False) | (Parcel.is_archived == None)
-    )
-    
+    # Delivered parcels are archived automatically, so a "Delivered" list must include archived
+    # ones, otherwise it is always empty (and never matches the dashboard count).
+    include_archived = filter_type == 'delivered_today' or status in ('delivered', 'closed')
+    query = Parcel.query
+    if not include_archived:
+        query = query.filter((Parcel.is_archived == False) | (Parcel.is_archived == None))
+
     # Filter for personal scans or deliveries today
     REAL_SCAN_ACTIONS = ('received', 'out_for_delivery', 'delivered', 'failed',
                          'returned', 'qr_scanned', 'picked_up', 'delivered_pending', 'closed')
     if filter_type == 'my_scans_today':
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = ist_today_start()
         from app.models.scan_log import ScanLog
         scanned_ids = [s.parcel_id for s in ScanLog.query.filter(
             ScanLog.employee_id == current_user.id,
@@ -246,7 +250,7 @@ def dispatch_list():
         ).all()]
         query = query.filter(Parcel.id.in_(scanned_ids if scanned_ids else [-1]))
     elif filter_type == 'my_deliveries_today':
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = ist_today_start()
         from app.models.scan_log import ScanLog
         deliv_ids = [s.parcel_id for s in ScanLog.query.filter(
             ScanLog.employee_id == current_user.id,
@@ -254,10 +258,13 @@ def dispatch_list():
             ScanLog.timestamp >= today_start
         ).all()]
         query = query.filter(Parcel.id.in_(deliv_ids if deliv_ids else [-1]))
+    elif filter_type == 'delivered_today':
+        # Same rule as the dashboard "Delivered Today" card (India time)
+        query = query.filter(Parcel.status == 'delivered', Parcel.delivered_at >= ist_today_start())
 
     # Always apply user-scope filter for non-superadmin to prevent data leakage
     if current_user.role not in ['superadmin']:
-        if not filter_type:
+        if filter_type not in ('my_scans_today', 'my_deliveries_today'):
             user_cond = get_user_parcel_filter(current_user)
             if user_cond is not None:
                 query = query.filter(user_cond)

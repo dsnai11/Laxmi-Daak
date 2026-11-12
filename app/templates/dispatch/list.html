@@ -160,13 +160,13 @@
       <div style="color: var(--text-muted); font-size: 12px;">Showing {{ parcels.items|length }} of {{ parcels.total }} results</div>
       <div style="display: flex; gap: 8px;">
         {% if parcels.has_prev %}
-        <a href="{{ url_for('dispatch.dispatch_list', page=parcels.prev_num, status=status, search=search, branch=request.args.get('branch','')) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Prev</a>
+        <a href="{{ url_for('dispatch.dispatch_list', page=parcels.prev_num, status=status, search=search, branch=request.args.get('branch',''), filter=request.args.get('filter',''), department=request.args.get('department','')) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Prev</a>
         {% else %}
         <button class="btn btn-sm" disabled style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; cursor: not-allowed; font-size: 13px;">Prev</button>
         {% endif %}
         
         {% if parcels.has_next %}
-        <a href="{{ url_for('dispatch.dispatch_list', page=parcels.next_num, status=status, search=search, branch=request.args.get('branch','')) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Next</a>
+        <a href="{{ url_for('dispatch.dispatch_list', page=parcels.next_num, status=status, search=search, branch=request.args.get('branch',''), filter=request.args.get('filter',''), department=request.args.get('department','')) }}" class="btn btn-sm" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px;">Next</a>
         {% else %}
         <button class="btn btn-sm" disabled style="background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--glass-border); padding: 6px 12px; border-radius: 4px; cursor: not-allowed; font-size: 13px;">Next</button>
         {% endif %}

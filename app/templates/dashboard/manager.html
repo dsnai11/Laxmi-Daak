@@ -56,7 +56,7 @@
       </div>
     </a>
     
-    <a href="{{ url_for('dispatch.dispatch_list') }}?status=delivered" class="stat-card-link">
+    <a href="{{ url_for('dispatch.dispatch_list', filter='delivered_today') }}" class="stat-card-link">
       <div class="stat-card stat-green">
         <div class="stat-header">
           <span class="stat-label">Delivered Today</span>

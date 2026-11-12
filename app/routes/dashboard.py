@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.branch import Branch
 from app.models.parcel import Parcel, get_user_parcel_filter
 from app.models.scan_log import ScanLog
+from app.utils import ist_today_start
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from functools import wraps
@@ -41,7 +42,7 @@ def index():
 @login_required
 @superadmin_required
 def admin_dashboard():
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = ist_today_start()
     from datetime import date
     today_date = date.today()
     
@@ -103,7 +104,7 @@ def admin_dashboard():
 @manager_required
 def manager_dashboard():
     branch_id = current_user.branch_id
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = ist_today_start()
     from datetime import date
     today_date = date.today()
     
@@ -194,7 +195,7 @@ def manager_dashboard():
 @dashboard_bp.route('/employee')
 @login_required
 def employee_dashboard():
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = ist_today_start()
     # Only count real physical scan actions — exclude 'dispatched' and 'edited'
     # which are auto-created when a parcel is created/edited, not manually scanned
     REAL_SCAN_ACTIONS = ('received', 'out_for_delivery', 'delivered', 'failed',

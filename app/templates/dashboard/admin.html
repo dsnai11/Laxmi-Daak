@@ -31,7 +31,7 @@
       </div>
     </a>
     
-    <a href="{{ url_for('dispatch.dispatch_list') }}?status=delivered" style="text-decoration:none;">
+    <a href="{{ url_for('dispatch.dispatch_list', filter='delivered_today') }}" style="text-decoration:none;">
       <div class="stat-card glass-card green-accent" style="cursor:pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 30px rgba(16,185,129,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
         <div class="stat-icon">✅</div>
         <div class="stat-details">
