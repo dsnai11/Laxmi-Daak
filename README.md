@@ -83,3 +83,5 @@ Private — All rights reserved © Laxmi Daak
 ## Releasing
 
 See [RELEASE.md](RELEASE.md): branch -> pull request -> tests -> merge -> EC2 auto-deploy.
+
+See [Handover.md](Handover.md) for the full handover: roles, rules, operations, troubleshooting and tips for working with AI assistants.
