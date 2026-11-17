@@ -7,6 +7,9 @@
   <div class="split-container">
     <!-- Left: Banner (60% width, red theme image) -->
     <div class="banner-side">
+      <div class="banner-scene" aria-hidden="true">
+        <img class="banner-truck" src="{{ url_for('static', filename='login_truck.png') }}" alt="">
+      </div>
     </div>
     
     <!-- Right: Login Form (40% width, off-white background) -->
@@ -377,10 +380,49 @@ html, body {
 /* Left Side (Banner with Image, 60% width, cover background size) */
 .banner-side {
   flex: 6; /* 60% Width */
-  background-image: url("{{ url_for('static', filename='login_banner.jpg') }}");
-  background-size: cover; /* Fits perfectly since image is 1:1 square */
-  background-position: center;
+  background: #000;
   position: relative;
+  overflow: hidden;
+  container-type: size;
+}
+
+/* Square scene that always "covers" the banner, like background-size: cover.
+   The background is the banner with the truck removed; the truck is a separate
+   image that drives across it. */
+.banner-scene {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100cqw, 100cqh);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  background: url("{{ url_for('static', filename='login_banner_plate.jpg') }}") center / 100% 100% no-repeat;
+}
+.banner-truck {
+  position: absolute;
+  left: 11.72%;
+  top: 62.5%;
+  width: 80.08%;
+  height: auto;
+  will-change: transform;
+  animation: truck-drive 16s linear infinite, truck-bounce .45s ease-in-out infinite alternate;
+}
+
+/* Drives in from the left, slows to a stop at the centre, then leaves to the right */
+@keyframes truck-drive {
+  0%   { transform: translateX(-110%); animation-timing-function: cubic-bezier(.2,.7,.3,1); }
+  22%  { transform: translateX(0); }
+  62%  { transform: translateX(0); animation-timing-function: cubic-bezier(.6,0,.9,.6); }
+  88%  { transform: translateX(110%); }
+  100% { transform: translateX(110%); }
+}
+/* Small suspension bounce while the truck is on the road */
+@keyframes truck-bounce {
+  from { margin-top: 0; }
+  to   { margin-top: -.35%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .banner-truck { animation: none; }
 }
 
 /* Responsive adjustments */
